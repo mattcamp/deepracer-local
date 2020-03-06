@@ -38,5 +38,6 @@ TODO: Get Kinesis working with localstack for local video streams.
 - `training_params.yaml` must exist in the target bucket or robomaker will not start. The start-training.sh script will copy it over from custom_files if necessary.
 - Scripts not currently included to handle pretrainined models or uploading to AWS Console or virtual league. 
 - Current sagemaker image is built for nvidia GPU only. Robomaker is currently CPU. 
+- The sagemaker image is huge (4.52GB)
 
 
