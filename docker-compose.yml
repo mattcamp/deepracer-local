@@ -34,7 +34,7 @@ services:
   #   ports:
   #     - "4567:4567"
   robomaker:
-    image: mattcamp/robomaker:cpu
+    image: awsdeepracercommunity/deepracer-robomaker:cpu
     command: ["${ROBOMAKER_COMMAND}"]
     volumes:
       - ./data/robomaker:/root/.ros/
