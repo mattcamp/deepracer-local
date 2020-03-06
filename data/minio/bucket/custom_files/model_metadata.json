@@ -1,0 +1,44 @@
+{
+    "action_space": [
+        {
+            "steering_angle": -30,
+            "speed": 1.0,
+            "index": 0
+        },
+        {
+            "steering_angle": -20,
+            "speed": 1.3333333333333333,
+            "index": 1
+        },
+        {
+            "steering_angle": -10,
+            "speed": 2,
+            "index": 2
+        },
+        {
+            "steering_angle": 0,
+            "speed": 2.5,
+            "index": 3
+        },
+        {
+            "steering_angle": 10,
+            "speed": 2,
+            "index": 4
+        },
+        {
+            "steering_angle": 20,
+            "speed": 1.3333333333333333,
+            "index": 5
+        },
+        {
+            "steering_angle": 30,
+            "speed": 1.0,
+            "index": 6
+        }
+    ],
+    "sensor": [
+        "STEREO_CAMERAS"
+    ],
+    "neural_network": "DEEP_CONVOLUTIONAL_NETWORK_SHALLOW",
+    "version": "2"
+}
