@@ -21,7 +21,7 @@ Very rough guide for use (details to come):
 Kinesis video currently only works via the real AWS Kinesis service. 
 
 To use Kinesis:
-- create a real AWS user with a role that allows Kinesis access. 
+- create a real AWS user (with programmatic access keys) which has a policy attached that allows Kinesis access. 
 - Update the AWS keys in config.env (including the minio ones) to match the user you have created.
 - Create a stream in Kinesis with a name to match the `KINESIS_VIDEO_STREAM_NAME` value (in config.vars) in region `eu-west-1`
 - Set `ENABLE_KINESIS` to `true` in config.env
