@@ -34,7 +34,7 @@ TODO: Get Kinesis working with localstack for local video streams.
 
 ## Known issues:
 - Sometimes sagemaker won't start claiming that `/opt/ml/input/config/resourceconfig.json` is missing. Still trying to work out why.
-- Stopping training at the wrong time seems to cause a problem where sagemaker will crash next time when trying to load the 'best' model which may not exist properly. 
+- Stopping training at the wrong time seems to cause a problem where sagemaker will crash next time when trying to load the 'best' model which may not exist properly. This only happens if you start a new training session without clearing out the bucket first. Yet to be seen if this will cause a problem when trying to use pretrained models.
 - `training_params.yaml` must exist in the target bucket or robomaker will not start. The start-training.sh script will copy it over from custom_files if necessary.
 - Scripts not currently included to handle pretrainined models or uploading to AWS Console or virtual league. 
 - Current sagemaker image is built for nvidia GPU only. Robomaker is currently CPU. 
