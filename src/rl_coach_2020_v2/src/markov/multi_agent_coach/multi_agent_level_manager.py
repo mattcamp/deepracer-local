@@ -305,6 +305,10 @@ class MultiAgentLevelManager(EnvironmentInterface):
         # let the agent observe the result and decide if it wants to terminate the episode
         done = [self.agents[agent_name].observe_transition(transition) for agent_name, transition in transitions.items() if transition]
         
+<<<<<<< HEAD
+=======
+        # Accumulate reward
+>>>>>>> e7d91f3780760386d09fb345e3fdab9a70da5f49
         for agent_name, transition in transitions.items():
             if transition:
                 self.agents[agent_name].total_reward_in_current_episode += transition.reward
