@@ -70,7 +70,7 @@ def force_list(val):
 
 def get_boto_config():
     '''Returns a botocore config object which specifies the number of times to retry'''
-    return botocore.config.Config(retries=dict(max_attempts=NUM_RETRIES), connect_timeout=3, read_timeout=3)
+    return botocore.config.Config(retries=dict(max_attempts=NUM_RETRIES))
 
 def cancel_simulation_job(simulation_job_arn, aws_region):
     logger.info("cancel_simulation_job: make sure to shutdown simapp first")
