@@ -11,6 +11,7 @@ Very rough guide for use (details to come):
 - set docker to use nvidia runtime as default
 - edit reward function and training params in `data/minio/bucket/custom_files`
 - tweak any other settings you want in `config.env`
+   - Modify `ENABLE_GPU_TRAINING` for SageMaker runtime: `true` (nvidia runtime) or `false` (CPU runtime)
 - run `./start-training.sh` to start training
 - view docker logs to see if it's working.
 - run `./stop-training.sh` to stop training.
