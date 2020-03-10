@@ -1,0 +1,84 @@
+@import url(https://fonts.googleapis.com/css?family=Montserrat:700);
+@import url(https://fonts.googleapis.com/css?family=Lato:300,400,700);
+@import url(https://fonts.googleapis.com/css?family=Open+Sans:400,600);
+@font-face {
+  font-family: 'pf_dindisplay_promedium';
+  src: url("fonts/pfdindisplaypro-med-webfont.eot");
+  src: url("fonts/pfdindisplaypro-med-webfont.eot?#iefix") format("embedded-opentype"), url("fonts/pfdindisplaypro-med-webfont.woff2") format("woff2"), url("fonts/pfdindisplaypro-med-webfont.woff") format("woff"), url("../fonts/pfdindisplaypro-med-webfont.ttf") format("truetype"), url("../fonts/pfdindisplaypro-med-webfont.svg#pf_dindisplay_promedium") format("svg");
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+    background-color: black;
+    color: white;
+    font-family: "pf_dindisplay_promedium", sans-serif;
+}
+
+i {
+    color: white;
+}
+
+
+.headerRow {
+    border: 0px solid green;
+    background-color: #2a0040;
+    width: 100%;
+    height: 50px;
+    padding: 5px;
+}
+
+.headerRight {
+    text-align: right;
+}
+
+.mainRow {
+    border: 0px solid blue;
+}
+
+.footerRow {
+    border: 0px solid red;
+    width: 100%;
+}
+
+#jobQueueDiv {
+    margin: 10px;
+    border: 0px solid grey;
+    min-height: 20%;
+    max-height: 25%;
+}
+
+.jobQueueHeaderLeft {
+    float: left;
+    width: 90%;
+}
+
+.jobQueueHeaderRight {
+    justify-content: right;
+    text-align: right;
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.modal-title {
+    color: black;
+}
+
+.statusRow {
+    border: 0px solid red;
+    margin: 5px;
+}
+
+.statRow {
+    margin: 5px;
+}
+
+.statBox {
+    border: 1px solid red;
+}
+
+.videoStream {
+    border: 1px solid blue;
+    max-width: 640px;
+    max-height: 480px;
+}
