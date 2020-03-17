@@ -40,6 +40,7 @@ services:
       - ./data/robomaker:/root/.ros/
     ports:
       - "8080:5900"
+      - "8888:8080" 
     container_name: robomaker
     restart: unless-stopped
     env_file: config.env
