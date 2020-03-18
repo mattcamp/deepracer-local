@@ -94,7 +94,7 @@ if enable_gpu_training == 'false':
     image_name = "richardfan1126/dr-sagemaker:cpu"
 else:
     instance_type = "local_gpu"
-    image_name = "mattcamp/dr-sagemaker:nvidia"
+    image_name = "awsdeepracercommunity/deepracer-sagemaker:gpu"
 
 estimator = RLEstimator(entry_point="training_worker.py",
                         source_dir='src',
