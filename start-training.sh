@@ -15,13 +15,13 @@ sleep 20
 
 echo 'Attempting to pull up sagemaker logs...'
 SAGEM_ID="$(docker ps | awk ' /sagemaker/ { print $1 }')"
-gnome-terminal -x sh -c "docker logs -f $SAGEM_ID"
 nohup docker logs -f $SAGEM_ID >data/robomaker/log/sagemaker_$(date +"%Y%m%d%H%M").log &
 ##gnome-terminal -x sh -c "docker logs -f $(docker ps | awk ' /sagemaker/ { print $1 }')"
 
 source ./config.env
-if [ "$ENABLE_ROS_BROWSER_WINDOW" = true ] ; then
+if [ "$ENABLE_ROS_WINDOW" = true ] ; then
     echo 'Attempting to open the viewer...'
     gnome-terminal -x sh -c "echo viewer;x-www-browser -new-window http://localhost:8888/stream_viewer?topic=/racecar/deepracer/kvs_stream;sleep 1;wmctrl -r kvs_stream -b remove,maximized_vert,maximized_horz;sleep 1;wmctrl -r kvs_stream -e 1,100,100,720,640"
+    gnome-terminal -x sh -c "docker logs -f $SAGEM_ID"
 fi
 
