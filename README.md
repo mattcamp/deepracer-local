@@ -6,16 +6,25 @@ This is a very early upload of Matt's local training setup so that a few people 
 
 Very rough guide for use (details to come):
 
-- install nvidia drivers and tools
+- install nvidia drivers and tools. 
 - install docker and docker-compose
-- set docker to use nvidia runtime as default
+- set docker to use docker-nvidia2 as default runtime
 - edit reward function and training params in `data/minio/bucket/custom_files`
 - tweak any other settings you want in `config.env`
-   - Modify `ENABLE_GPU_TRAINING` for SageMaker runtime: `true` (nvidia runtime) or `false` (CPU runtime)
+   - Modify `ENABLE_GPU_TRAINING` for SageMaker runtime: `true` (nvidia runtime) or `false` (CPU runtime). Default is GPU.
+   - Set `ENABLE_LOCAL_DESKTOP` to `true` if you have a local X-windows install (desktop machine) and want to automatically start the stream viewer and tail sagemaker logs.
 - run `./start-training.sh` to start training
 - view docker logs to see if it's working.
 - run `./stop-training.sh` to stop training.
 - run `./delete_last_run.sh` to clear out the buckets for a fresh run. 
+
+The first run will likely take quite a while to start as it needs to pull over 10GB of all the docker images.
+You can avoid this delay by pulling the images in advance:
+
+   - `docker pull awsdeepracercommunity/deepracer-sagemaker:<cpu or gpu>`
+   - `docker pull awsdeepracercommunity/deepracer-robomaker:<cpu or gpu>`
+   - `docker pull mattcamp/dr-coach`
+   - `docker pull minio/minio`
 
 ## Kinesis video
 
@@ -38,7 +47,7 @@ TODO: Get Kinesis working with localstack for local video streams.
 - Stopping training at the wrong time seems to cause a problem where sagemaker will crash next time when trying to load the 'best' model which may not exist properly. This only happens if you start a new training session without clearing out the bucket first. Yet to be seen if this will cause a problem when trying to use pretrained models.
 - `training_params.yaml` must exist in the target bucket or robomaker will not start. The start-training.sh script will copy it over from custom_files if necessary.
 - Scripts not currently included to handle pretrainined models or uploading to AWS Console or virtual league. 
-- Current sagemaker image is built for nvidia GPU only. Robomaker is currently CPU. 
-- The sagemaker image is huge (4.52GB)
+- Current sagemaker and robomaker GPU images are built for nvidia GPU only. 
+- The sagemaker and robomakers images are huge (~4.5GB)
 
 
