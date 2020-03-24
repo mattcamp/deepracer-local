@@ -63,6 +63,9 @@ class CurrentJob():
             'RANDOMIZE_OBSTACLE_LOCATIONS': "false"
         }
 
+        self.metrics = []
+        self.entropy_metrics = []
+
         self.training_job = None
         self.minio_container = None
         self.coach_container = None
@@ -79,8 +82,9 @@ class CurrentJob():
         }
         self.update_status()
 
+
     def update_status(self):
-        print("Updating current docker status")
+        # print("Updating current docker status")
         self.status['sagemaker_status'] = None
         self.status['robomaker_status'] = None
         self.status['coach_status'] = None
@@ -107,7 +111,7 @@ class CurrentJob():
                 self.status['minio_status'] = container.attrs['State']['Status']
                 if not self.minio_container:
                     self.minio_container = container
-                print(self.minio_container.attrs['State']['Status'])
+
 
 
 

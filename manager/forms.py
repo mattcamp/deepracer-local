@@ -9,9 +9,9 @@ class NewJobForm(FlaskForm):
                                                   ('OBJECT_AVOIDANCE', 'Object Avoidance'),
                                                   ('HEAD_TO_BOT', "Head to Bot"),
                                                   ('HEAD_TO_MODEL', "Head to Model")])
-    track = StringField('Track', validators=[DataRequired()], default="LGSWide")
-    reward_function_filename = StringField('Reward Function filename', validators=[DataRequired()], default="reward.py")
-    model_metadata_filename = StringField('Model Metadata filename', validators=[DataRequired()],
+    track = SelectField('Track', validators=[DataRequired()], default="LGSWide")
+    reward_function_filename = SelectField('Reward Function filename', validators=[DataRequired()], default="reward.py")
+    model_metadata_filename = SelectField('Model Metadata filename', validators=[DataRequired()],
                                           default="model_metadata.json")
     episodes = IntegerField('Episodes to train', default=1000)
     episodes_between_training = IntegerField('Episodes between training', default=20)
@@ -27,4 +27,4 @@ class NewJobForm(FlaskForm):
     randomize_obstacle_locations = BooleanField('Random obstacle locations')
     change_start_position = BooleanField('Change start position')
     alternate_driving_direction = BooleanField('Alternate driving direction')
-    pretrained_model = StringField('Pre-trained model name')
+    pretrained_model = SelectField('Pre-trained model')

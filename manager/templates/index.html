@@ -2,9 +2,9 @@
 <head>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
           integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-    <script src="https://kit.fontawesome.com/22ca60ec3f.js" crossorigin="anonymous"></script>
 
 
+    <link rel="stylesheet" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.css">
     <link rel="stylesheet" href="/static/manager.css">
     <script src="https://code.jquery.com/jquery-3.4.1.min.js"
             integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
@@ -14,6 +14,16 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
             integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
             crossorigin="anonymous"></script>
+
+    <script src="https://kit.fontawesome.com/22ca60ec3f.js" crossorigin="anonymous"></script>
+{#    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>#}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.js"></script>
+
+    <link href="/static/tabulator_midnight.css" rel="stylesheet">
+    <script type="text/javascript" src="/static/tabulator.min.js"></script>
+
+
     <script src="/static/manager.js"></script>
     <title>Deepracer local training</title>
 </head>
@@ -27,62 +37,110 @@
                 <div class="row">
                     <div class="col-sm-8 headerLeft"><h2>DeepRacer Local Training</h2></div>
                     <div class="col-sm-4 headerRight">
-                        <button class="btn btn-success" id="startStopButton">Start Training</button>
+                        <button class="btn btn-success" id="startButton">Start</button>
+                        <button class="btn btn-danger" id="stopButton">Stop</button>
                     </div>
                 </div>
-                </div>
+            </div>
         </div>
 
         <div class="mainRow flex-column flex-grow-1 overflow-auto">
 
-            <div id="jobQueueDiv" class="overflow-auto">
+{#            <div id="jobQueueDiv" class="overflow-auto">#}
                 <div class="row">
                     <div class="col-sm-10">Training Job Queue</div>
                     <div class="col-sm-2 jobQueueHeaderRight">
-                        <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#newJobModal">
+                        <button class="btn btn-primary btn-sm" id="addJobButton">
                             <i class="fas fa-plus-circle"></i> Add Job
                         </button>&nbsp;
                     </div>
                 </div>
+                <div id="jobQueueDiv" class="row">
+                    <div class="col-sm-12">
+                        <div id="jobsTable"></div>
+                    </div>
+                </div>
 
 
-                <table class="table table-dark table-hover table-bordered table-sm" id="jobQueueTable">
-                    <thead>
-                    <tr>
-                        <th scope="col">#</th>
-                        <th scope="col">Name</th>
-                        <th scope="col">Episodes</th>
-                        <th scope="col">Track</th>
-                        <th scope="col">Status</th>
-                        <th scope="col">Laps complete</th>
-                        <th scope="col">Avg % laps complete</th>
-                        <th scope="col">Fastest lap</th>
-                        <th></th>
-                    </tr>
-                    </thead>
-                    <tbody id="jobQueueTableBody">
-                    <tr></tr>
-
-                    </tbody>
-                </table>
-            </div>
+{#                <table class="table table-dark table-hover table-bordered table-sm" id="jobQueueTable">#}
+{#                    <thead>#}
+{#                    <tr>#}
+{#                        <th scope="col">#</th>#}
+{#                        <th scope="col">Name</th>#}
+{#                        <th scope="col">Episodes</th>#}
+{#                        <th scope="col">Track</th>#}
+{#                        <th scope="col">Status</th>#}
+{#                        <th scope="col">Laps complete</th>#}
+{#                        <th scope="col">Avg % laps complete</th>#}
+{#                        <th scope="col">Fastest lap</th>#}
+{#                        <th></th>#}
+{#                    </tr>#}
+{#                    </thead>#}
+{#                    <tbody id="jobQueueTableBody">#}
+{#                    <tr></tr>#}
+{##}
+{#                    </tbody>#}
+{#                </table>#}
+{#            </div>#}
 
             <div class="row statusRow">
                 <div class="containerStatus col-sm-3">
                     Container status:
                     <table class="table table-sm table-dark">
-                        <tr><td>Minio</td><td><div id="minioStatus"></div></td></tr>
-                        <tr><td>Coach</td><td><div id="coachStatus"></div></td></tr>
-                        <tr><td>Sagemaker</td><td><div id="sagemakerStatus"></div></td></tr>
-                        <tr><td>Robomaker</td><td><div id="robomakerStatus"></div></td></tr>
+                        <tr>
+                            <td>Minio</td>
+                            <td>
+                                <div id="minioStatus"></div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Coach</td>
+                            <td>
+                                <div id="coachStatus"></div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Sagemaker</td>
+                            <td>
+                                <div id="sagemakerStatus"></div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Robomaker</td>
+                            <td>
+                                <div id="robomakerStatus"></div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="currentStatus col-sm-5">
+                    Training session status:
+                    <table class="table table-dark table-sm">
+                        <tr>
+                            <th>State:</th><td id="sessionState"></td>
+                        </tr>
+                        <tr>
+                            <th>Phase:</th><td id="sessionPhase"></td>
+                        </tr>
+                        <tr>
+                            <th>Episode:</th><td id="sessionEpisode"></td>
+                        </tr>
+                        <tr>
+                            <th>Iteration:</th><td id="sessionIteration"></td>
+                        </tr>
+                        <tr>
+                            <th>Best Checkpoint:</th><td id="sessionBestCheckpoint"></td>
+                        </tr>
                     </table>
                 </div>
             </div>
 
             <div class="row statRow">
-                <div class="statBox col-sm-4">Stats 1</div>
-                <div class="statBox col-sm-4">Stats 2</div>
-                <div class="videoStream col-sm-4"><img width=100% src="http://192.168.0.101:8080/stream?topic=/racecar/deepracer/kvs_stream"></div>
+                <div class="statBox col-sm-4"><canvas id="rewardGraph" width="100%"></canvas></div>
+                <div class="statBox col-sm-4"><canvas id="completionGraph" width="100%"></canvas></div>
+                <div class="videoStream col-sm-4">
+                    <img id="videoImg" width="100%" src="/static/nosignal.png">
+                </div>
             </div>
 
         </div>
@@ -99,7 +157,7 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="newJobModalLabel">Add new training job</h5>
+                <h5 class="modal-title" id="newJobModalLabel">Edit training job</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -119,6 +177,7 @@
                 <form id="newJobForm">
                     <table class="table table-sm">
                         {{ form.csrf_token }}
+                        <input type="hidden" name="id" id="id">
                         {% for field in form if field.widget.input_type != 'hidden' %}
                             <tr>
                                 {{ render_field(field) }}
@@ -126,11 +185,12 @@
                         {% endfor %}
                     </table>
                 </form>
+                <div id="formError"></div>
 
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                <button type="submit" class="btn btn-primary" id="addJobButton">Save changes</button>
+                <button type="submit" class="btn btn-primary" id="saveJobButton">Save changes</button>
 
             </div>
         </div>

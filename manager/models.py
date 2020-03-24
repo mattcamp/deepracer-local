@@ -1,7 +1,12 @@
 from manager import db
+from sqlalchemy_mixins import AllFeaturesMixin
+
+class BaseModel(db.Model, AllFeaturesMixin):
+    __abstract__ = True
+    pass
 
 
-class TrainingJob(db.Model):
+class TrainingJob(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), index=True, unique=True)
     track = db.Column(db.String(120))
