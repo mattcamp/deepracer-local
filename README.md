@@ -12,6 +12,7 @@ Very rough guide for use (details to come):
 - edit reward function and training params in `data/minio/bucket/custom_files`
 - tweak any other settings you want in `config.env`
    - Modify `ENABLE_GPU_TRAINING` for SageMaker runtime: `true` (nvidia runtime) or `false` (CPU runtime). Default is GPU.
+   - If you do not have an nvidia GPU then you will also need to change the tag of the robomaker image inside `docker-compose.yml`
    - Set `ENABLE_LOCAL_DESKTOP` to `true` if you have a local X-windows install (desktop machine) and want to automatically start the stream viewer and tail sagemaker logs.
 - run `./start-training.sh` to start training
 - view docker logs to see if it's working.
