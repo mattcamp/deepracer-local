@@ -34,12 +34,13 @@ services:
   #   ports:
   #     - "4567:4567"
   robomaker:
-    image: awsdeepracercommunity/deepracer-robomaker:cpu
+    image: awsdeepracercommunity/deepracer-robomaker:matt
     command: ["${ROBOMAKER_COMMAND}"]
     volumes:
       - ./data/robomaker:/root/.ros/
     ports:
-      - "8080:5900"
+      - "8000:5900"
+      - "8080:8080"
     container_name: robomaker
     restart: unless-stopped
     env_file: config.env
