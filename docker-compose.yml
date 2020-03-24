@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
     env_file: config.env
   rl_coach:
-    image: mattcamp/dr-coach
+    image: mattcamp/dr-coach:latest
     env_file: config.env
     container_name: coach
     volumes:
@@ -26,15 +26,8 @@ services:
     - '/robo/container:/robo/container'
     depends_on:
     - minio
-  # kinesis:
-  #   image: vsouza/kinesis-local:latest
-  #   command: --port 4567 --ssl
-  #   restart: always
-  #   container_name: kinesis
-  #   ports:
-  #     - "4567:4567"
   robomaker:
-    image: awsdeepracercommunity/deepracer-robomaker:cpu
+    image: awsdeepracercommunity/deepracer-robomaker:gpu
     command: ["${ROBOMAKER_COMMAND}"]
     volumes:
       - ./data/robomaker:/root/.ros/
@@ -46,4 +39,3 @@ services:
     env_file: config.env
     depends_on:
     - rl_coach
-    # - kinesis

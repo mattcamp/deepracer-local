@@ -91,7 +91,7 @@ RLCOACH_PRESET = "deepracer"
 enable_gpu_training = os.environ.get('ENABLE_GPU_TRAINING', 'false')
 if enable_gpu_training == 'false':
     instance_type = "local"
-    image_name = "richardfan1126/dr-sagemaker:cpu"
+    image_name = "awsdeepracercommunity/deepracer-sagemaker:cpu"
 else:
     instance_type = "local_gpu"
     image_name = "awsdeepracercommunity/deepracer-sagemaker:gpu"
