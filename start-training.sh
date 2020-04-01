@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source config.env
+
 if [ ! -e data/minio/bucket/current/training_params.yaml ]; then
     mkdir -p data/minio/bucket/current
     cp data/minio/bucket/custom_files/training_params.yaml data/minio/bucket/current
