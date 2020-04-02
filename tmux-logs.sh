@@ -12,9 +12,10 @@ tmux new-session -d bash
 tmux split-window -h bash
 tmux set pane-border-status;
 tmux display-pane;
-tmux select-pane -t 0:0.0 -T 'Robomaker logs'
 tmux select-pane -t 0:0.1 -T 'Sagemaker logs'
+tmux select-pane -t 0:0.0 -T 'Robomaker logs'
 tmux send -t 0:0.0 "docker logs -f robomaker" C-m
 tmux send -t 0:0.1 "./tail-sagemaker-logs.sh" C-m
+tmux select-pane -t 0:0.0
 tmux -2 attach-session -d
 
