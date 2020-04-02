@@ -2,7 +2,7 @@
 
 TMUX=$(which tmux)
 
-if [ ! -z $TMUX ]
+if [ -z $TMUX ]
 then
   echo "tmux not found in path"
   exit 0
