@@ -9,3 +9,8 @@ if [ "$ENABLE_LOCAL_DESKTOP" = true ] ; then
     wmctrl -c kvs_stream
 fi
 
+if [ ! -z "$(which tmux)" ]
+then
+  tmux kill-session
+fi
+
