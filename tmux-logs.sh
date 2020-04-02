@@ -8,9 +8,8 @@ then
   exit 0
 fi
 
-tmux new-session -d bash
-tmux split-window -h bash
-#sends keys to first and second terminals
+tmux new-session -n 'robomaker' -d bash
+tmux split-window -n 'sagemaker' -h bash
 tmux send -t 0:0.0 "docker logs -f robomaker" C-m
 tmux send -t 0:0.1 "./tail-sagemaker-logs.sh" C-m
 tmux -2 attach-session -d

@@ -27,7 +27,7 @@ services:
     depends_on:
     - minio
   robomaker:
-    image: awsdeepracercommunity/deepracer-robomaker:cpu-test
+    image: awsdeepracercommunity/deepracer-robomaker:cpu
     command: ["${ROBOMAKER_COMMAND}"]
     volumes:
       - ./data/robomaker:/root/.ros/
