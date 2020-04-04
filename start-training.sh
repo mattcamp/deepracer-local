@@ -24,7 +24,7 @@ if [ "$ENABLE_LOCAL_DESKTOP" = true ] ; then
     gnome-terminal -x sh -c "docker logs -f $SAGEMAKER_ID"
 else
     echo "Started in headless server mode. Set ENABLE_LOCAL_DESKTOP to true in config.env for desktop mode."
-    if [ "$ENABLE_TMUX" = true] ; then
+    if [ "$ENABLE_TMUX" = true ] ; then
         ./tmux-logs.sh
     fi
 fi
