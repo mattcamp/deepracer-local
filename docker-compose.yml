@@ -31,6 +31,8 @@ services:
     command: ["${ROBOMAKER_COMMAND}"]
     volumes:
       - ./data/robomaker:/root/.ros/
+      - ./src/lib.deepracer_simulation_environment:/opt/install/deepracer_simulation_environment/lib/deepracer_simulation_environment/
+      - ./src/share.deepracer_simulation_environment:/opt/install/deepracer_simulation_environment/share/deepracer_simulation_environment/
     ports:
       - "8080:5900"
       - "8888:8080" 
