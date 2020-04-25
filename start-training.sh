@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source config.env
+
 if [ ! -e data/minio/bucket/current/training_params.yaml ]; then
     mkdir -p data/minio/bucket/current
     cp data/minio/bucket/custom_files/training_params.yaml data/minio/bucket/current
@@ -22,6 +24,8 @@ if [ "$ENABLE_LOCAL_DESKTOP" = true ] ; then
     gnome-terminal -x sh -c "docker logs -f $SAGEMAKER_ID"
 else
     echo "Started in headless server mode. Set ENABLE_LOCAL_DESKTOP to true in config.env for desktop mode."
-    ./tmux-logs.sh
+    if [ "$ENABLE_TMUX" = true ] ; then
+        ./tmux-logs.sh
+    fi
 fi
 
