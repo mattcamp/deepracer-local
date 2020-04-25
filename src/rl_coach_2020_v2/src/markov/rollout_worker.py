@@ -45,7 +45,7 @@ logger = utils.Logger(__name__, logging.INFO).get_logger()
 
 TRAINING_SIMTRACE_DATA_S3_OBJECT_KEY = "sim_inference_logs/TrainingSimTraceData.csv"
 
-MIN_EVAL_TRIALS = 5
+MIN_EVAL_TRIALS = rospy.get_param('MIN_EVAL_TRIALS', 5)
 
 CUSTOM_FILES_PATH = "./custom_files"
 if not os.path.exists(CUSTOM_FILES_PATH):
