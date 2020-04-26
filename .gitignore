@@ -6,3 +6,4 @@ data/minio/.minio.sys
 **/venv
 manager/venv
 *.pyc
+manager/logs/*.log

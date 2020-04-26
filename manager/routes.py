@@ -7,10 +7,11 @@ from manager.utils import start_training_job, stop_all_containers
 from os import getcwd, listdir
 import json
 from os.path import isfile, isdir, join
+import redis
 
 
 def str2bool(v):
-    return v.lower() in ("yes", "true", "t", "1")
+    return v.lower() in ("yes", "true", "t", "1", "y")
 
 
 @app.route('/')
@@ -36,13 +37,15 @@ def index():
         "Straight_track",
         "Tokyo_Training_track",
         "Vegas_track",
-        "Virtual_May19_Train_track"
+        "Virtual_May19_Train_track",
+        "AmericasGeneratedInclStart"
     ]
 
     cwd = getcwd()
     bucketpath = "{}/data/minio/bucket".format(cwd)
     customfiles_dir = "{}/custom_files".format(bucketpath)
-    modeldirs = []
+    modeldirs = [('None', '----')]
+    # modeldirs = []
     metadata_files = []
     reward_func_files = []
     exclude_dirs = ["DeepRacer-Metrics", "custom_files"]
@@ -94,7 +97,7 @@ def jobs():
             this_job = TrainingJob()
             db.session.add(this_job)
 
-        this_job.name=data['name']
+        this_job.name = data['name']
         this_job.race_type = data['race_type']
         this_job.track = data['track']
         this_job.reward_function_filename = data['reward_function_filename']
@@ -109,10 +112,11 @@ def jobs():
         this_job.loss_type = data['loss_type']
         this_job.number_of_obstacles = data['number_of_obstacles']
         this_job.randomize_obstacle_locations = str2bool(data['randomize_obstacle_locations'])
+        app.logger.debug("change_start: {}".format(data['change_start_position']))
+        app.logger.debug("str2bool: {}".format(str2bool(data['change_start_position'])))
         this_job.change_start_position = str2bool(data['change_start_position'])
         this_job.alternate_direction = str2bool(data['alternate_driving_direction'])
         this_job.pretrained_model = data['pretrained_model']
-
 
         db.session.commit()
 
@@ -127,14 +131,30 @@ def jobs():
         jobs_array = []
         for this_job in all_jobs:
             jobs_array.append(this_job.as_dict())
-        app.logger.info(json.dumps(jobs_array))
+        # app.logger.info(json.dumps(jobs_array))
         return jsonify(jobs_array)
 
 
-@app.route('/job', methods=["GET", "POST"])
-def job():
-    job_id = request.args.get('job_id', None)
-    if job_id:
+@app.route('/job/<job_id>', methods=["GET", "POST", "DELETE"])
+def job(job_id):
+    app.logger.info("in job({})".format(job_id))
+    # job_id = request.args.get('job_id', None)
+
+    if not job_id:
+        return "Job not found", 404
+
+    if request.method == "DELETE":
+        app.logger.info("Got delete for job {}".format(job_id))
+        job_to_delete = TrainingJob.query.filter_by(id=job_id).first()
+        if job_to_delete:
+            app.logger.info("Found job: {}".format(job_to_delete))
+            if current_job.training_job == job_to_delete:
+                current_job.training_job = None
+            db.session.delete(job_to_delete)
+            db.session.commit()
+        return "OK", 200
+
+    if request.method == "GET":
         this_job = TrainingJob.query.get(job_id)
         return jsonify(this_job.as_dict())
 
@@ -145,18 +165,31 @@ def current_training_job():
         request_data = request.json
         if request_data['action'] == "start_training":
             app.logger.info("Starting training session")
+            current_job.desired_state = "running"
             current_job.update_status()
             if not current_job.status['sagemaker_status'] and not current_job.status['robomaker_status']:
                 app.logger.info("ok to start")
-                start_training_job()
+                first_job = TrainingJob.query.filter_by(status='queued').first()
+                if first_job:
+                    start_training_job(first_job)
+                else:
+                    app.logger.warning("Start button clicked but no jobs in queued state")
+                    return "No queued jobs", 400
             else:
                 app.logger.info("Not ok to start")
                 return "not ready", 412
 
         if request_data['action'] == "stop_training":
-            app.logger.info("STOP TRAINING BUTTON")
-            current_job.training_job.status = "stopped"
-            db.session.commit();
+            app.logger.info("Stop training requested")
+            current_job.desired_state = "stopped"
+            try:
+                training_job = TrainingJob.query.get(current_job.training_job_id)
+                db.session.refresh(training_job)
+                training_job.status = "stopped"
+                db.session.commit()
+            except Exception as e:
+                app.logger.error("Error while stopping: {}".format(e))
+
             stop_all_containers()
 
         return "OK"
@@ -165,11 +198,32 @@ def current_training_job():
         return jsonify(current_job.status)
 
 
-@app.route('/metrics', methods=["GET"])
-def get_metrics():
+# @app.route('/metrics', methods=["GET"])
+# def get_metrics():
+#     from_episode = request.args.get('from_episode', -1)
+#     metrics_to_return = []
+#     for metric in current_job.metrics:
+#         if metric['phase'] == "training" and metric['episode'] > int(from_episode):
+#             metrics_to_return.append(metric)
+#             print(metric)
+#
+#         if metric['phase'] == "evaluation" and metric['episode'] >= int(from_episode):
+#             metrics_to_return.append(metric)
+#             print(metric)
+#
+#     return jsonify(metrics_to_return)
+
+
+@app.route('/metrics/<job_id>', methods=["GET"])
+def get_metrics(job_id):
     from_episode = request.args.get('from_episode', -1)
     metrics_to_return = []
-    for metric in current_job.metrics:
+    r = redis.Redis()
+
+    key = "metrics-{}".format(job_id)
+    for i in range(0, r.llen(key)):
+        metric = json.loads(r.lindex(key, i).decode("utf-8"))
+
         if metric['phase'] == "training" and metric['episode'] > int(from_episode):
             metrics_to_return.append(metric)
             print(metric)
@@ -179,3 +233,22 @@ def get_metrics():
             print(metric)
 
     return jsonify(metrics_to_return)
+
+
+@app.route('/pretrained_dirs', methods=["GET"])
+def pretrained_dirs():
+    cwd = getcwd()
+    bucketpath = "{}/data/minio/bucket".format(cwd)
+    modeldirs = [('None', '----')]
+    exclude_dirs = ["DeepRacer-Metrics", "custom_files"]
+
+    for f in listdir(bucketpath):
+        if isdir(join(bucketpath, f)):
+            if f not in exclude_dirs:
+                modeldirs.append({"value": f, "text": f})
+
+    queued_jobs = TrainingJob.query.filter_by(status="queued").all()
+    for qj in queued_jobs:
+        modeldirs.append({"value": qj.name, "text": qj.name})
+
+    return jsonify(modeldirs)

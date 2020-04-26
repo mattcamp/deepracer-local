@@ -1,15 +1,108 @@
 import os
-import shutil
 import docker
 import time
 import threading
-import re
-import json
-from pygtail import Pygtail
+import logging
+from datetime import datetime
+
 from manager import app, current_job, db
 from manager.models import TrainingJob
+from .log_watchers import tail_robomaker_logs, tail_sagemaker_logs, tail_metrics, start_sagemaker_log_tail
 
 client = docker.from_env()
+
+
+def main_loop():
+    while True:
+        app.logger.debug("in main loop")
+        if current_job.training_job is not None:
+            try:
+                training_job = TrainingJob.query.get(current_job.training_job_id)
+                db.session.refresh(training_job)
+                app.logger.debug(
+                    "Status: {} {}: {} / {}".format(training_job.name,
+                                                    training_job.status,
+                                                    current_job.status['episode_number'],
+                                                    current_job.target_episodes))
+
+                if training_job.status == "training":
+                    if training_job.start_timestamp:
+                        td = datetime.now() - training_job.start_timestamp
+                        minutes = divmod(td.seconds, 60)[0]
+                        app.logger.info("Minutes trained: {} / {}".format(minutes, training_job.minutes_target))
+
+                        if minutes != training_job.minutes_trained:
+                            training_job.minutes_trained = minutes
+                            db.session.commit()
+                    # else:
+                    #     app.logger.warning("Timestamp is {}".format(training_job.start_timestamp))
+
+                    if current_job.status['episode_number'] >= current_job.target_episodes:
+                        app.logger.info(
+                            "Target episode number reached! {} / {}".format(current_job.status['episode_number'],
+                                                                            current_job.target_episodes))
+                        training_job.status = "complete"
+                        db.session.commit()
+
+                        stop_all_containers()
+                        start_next_job()
+            except Exception as e:
+                app.logger.error("ERROR in main_loop: {}".format(e))
+        else:
+            app.logger.debug("no current job, waiting")
+        time.sleep(2)
+
+
+def init_redis():
+    redis_found = False
+    for container in client.containers.list():
+        if "redis" in container.attrs['Name']:
+            redis_found = True
+
+    if not redis_found:
+        app.logger.info("Starting redis")
+        network = init_docker_network()
+        cwd = os.getcwd()
+        redis_data_dir = "%s/data/redis" % cwd
+
+        if not os.path.exists(redis_data_dir):
+            os.mkdir(redis_data_dir)
+
+        redis_image_found = False
+        for image in client.images.list():
+            if "redis:latest" in image.attrs['RepoTags']:
+                redis_image_found = True
+
+        if not redis_image_found:
+            app.logger.info("Pulling redis:latest docker image")
+            client.images.pull("redis:latest")
+            app.logger.info("Docker pull complete")
+        else:
+            app.logger.info("Redis docker image found")
+
+        redis_container = client.containers.run("redis:latest",
+                                                name="redis",
+                                                network=network.id,
+                                                ports={6379: 6379},
+                                                command="redis-server --appendonly yes",
+                                                volumes={redis_data_dir: {'bind': '/data', 'mode': 'rw'}},
+                                                detach=True,
+                                                remove=True)
+        app.logger.info("Redis started")
+    else:
+        app.logger.info("Redis already running")
+
+
+def init_docker_network():
+    networks = client.networks.list(names=['sagemaker-local'])
+    if len(networks):
+        network = networks[0]
+        app.logger.info("Found docker network %s" % network.id)
+    else:
+        app.logger.info("Creating docker network")
+        network = client.networks.create("sagemaker-local", driver="bridge", scope="local")
+
+    return network
 
 
 def write_training_params(filename):
@@ -21,50 +114,65 @@ def write_training_params(filename):
 
 
 def setup_bucket():
-    cwd = os.getcwd()
-    bucket_path = "%s/data/minio/bucket/%s" % (cwd, current_job.training_job.name)
-    if os.path.exists(bucket_path):
-        app.logger.info("Path exists: %s" % bucket_path)
-        old_bucket_path = "%s.old" % bucket_path
-        if os.path.exists(old_bucket_path):
-            app.logger.info("Old path exists, removing: %s" % old_bucket_path)
-            os.system("sudo rm -rf %s" % old_bucket_path)
-        os.rename(bucket_path, old_bucket_path)
+    try:
+        cwd = os.getcwd()
+        bucket_path = "%s/data/minio/bucket/%s" % (cwd, current_job.training_job.name)
+        if os.path.exists(bucket_path):
+            app.logger.info("Path exists: %s" % bucket_path)
+            old_bucket_path = "%s.old" % bucket_path
+            if os.path.exists(old_bucket_path):
+                app.logger.info("Old path exists, removing: %s" % old_bucket_path)
+                os.system("sudo rm -rf %s" % old_bucket_path)
+            os.rename(bucket_path, old_bucket_path)
 
-    app.logger.info("Creating bucket directory: %s" % bucket_path)
-    os.mkdir(bucket_path)
+        app.logger.info("Creating bucket directory: %s" % bucket_path)
+        os.mkdir(bucket_path)
 
-    latest_path = "%s/data/minio/bucket/latest" % cwd
-    if os.path.exists(latest_path):
-        os.remove(latest_path)
+        latest_path = "%s/data/minio/bucket/latest" % cwd
+        if os.path.exists(latest_path):
+            os.remove(latest_path)
 
-    os.symlink(bucket_path, latest_path)
+        os.symlink(bucket_path, latest_path)
 
-    write_training_params("%s/training_params.yaml" % bucket_path)
+        write_training_params("%s/training_params.yaml" % bucket_path)
 
-    metric_file = "%s/data/minio/bucket/DeepRacer-Metrics/TrainingMetrics.json" % cwd
-    os.system("sudo rm %s" % metric_file)
+        metric_file = "%s/data/minio/bucket/DeepRacer-Metrics/TrainingMetrics.json" % cwd
+        os.system("sudo rm %s" % metric_file)
+
+        os.mkdir("{}/logs".format(bucket_path))
+
+    except Exception as e:
+        app.logger.error("Error setting up bucket: {}".format(e))
+        return False
+
+    return True
 
 
-def start_training_job():
+def start_next_job():
+    next_job = TrainingJob.query.filter_by(status="queued").first()
+    if next_job:
+        app.logger.info("Starting next queued job: {}".format(next_job.name))
+        start_training_job(next_job)
+    else:
+        app.logger.info("No queued jobs found")
+
+
+def start_training_job(job):
     current_job.__init__()
-    first_job = TrainingJob.query.filter_by(status='queued').first()
-    current_job.configure_from_queued_job(first_job)
-    setup_bucket()
-    start_all_containers()
-    current_job.training_job.status = "training"
-    db.session.commit()
+    current_job.configure_from_queued_job(job)
+
+    if setup_bucket():
+        start_all_containers()
+        current_job.training_job.status = "training"
+        db.session.commit()
+    else:
+        # Reset current_job
+        current_job.__init__()
 
 
 def start_all_containers():
     cwd = os.getcwd()
-    networks = client.networks.list(names=['sagemaker-local'])
-    if len(networks):
-        network = networks[0]
-        app.logger.info("found network %s" % network.id)
-    else:
-        app.logger.info("Creating docker network")
-        network = client.networks.create("sagemaker-local", driver="bridge", scope="local")
+    network = init_docker_network()
 
     if not current_job.minio_container:
         app.logger.info("Starting minio")
@@ -100,8 +208,8 @@ def start_all_containers():
                                                             volumes=coach_volumes,
                                                             detach=True,
                                                             remove=True)
-        coach_tail = threading.Thread(target=tail_sagemaker_logs, args=(current_job.coach_container,))
-        coach_tail.start()
+
+        start_sagemaker_log_tail()
 
     if not current_job.robomaker_container:
         app.logger.info("Starting robomaker")
@@ -115,21 +223,40 @@ def start_all_containers():
                                                                                               'mode': 'rw'}},
                                                                 detach=True,
                                                                 remove=True)
-        robomaker_tail = threading.Thread(target=tail_robomaker_logs, args=(current_job.robomaker_container,))
-        robomaker_tail.start()
 
-        metrics_tail = threading.Thread(target=tail_metrics)
-        metrics_tail.start()
+        if current_job.robotail is None:
+            current_job.robotail = threading.Thread(target=tail_robomaker_logs, args=(current_job.robomaker_container,))
+            current_job.robotail.start()
+        else:
+            # robomaker tail thread exists, but is it alive?
+            if not current_job.robotail.is_alive():
+                current_job.robotail = threading.Thread(target=tail_robomaker_logs,
+                                                        args=(current_job.robomaker_container,))
+                current_job.robotail.start()
+
+        if current_job.metricstail is None:
+            current_job.metricstail = threading.Thread(target=tail_metrics)
+            current_job.metricstail.start()
+        else:
+            if not current_job.metricstail.is_alive():
+                current_job.metricstail = threading.Thread(target=tail_metrics)
+                current_job.metricstail.start()
 
 
 def stop_all_containers(minio=False):
     current_job.update_status()
-    current_job.training_job.status = "stopped"
-    db.session.commit()
+
+    if current_job.training_job:
+        current_job.training_job.status = "stopped"
+        db.session.commit()
+    else:
+        app.logger.warning("No current_job.training_job")
 
     if current_job.sagemaker_container:
         try:
+            app.logger.info("Stopping Sagemaker")
             current_job.sagemaker_container.kill()
+            app.logger.info("Waiting for Sagemaker to exit")
             # wait 10 seconds for model.tar.gz to be written
             time.sleep(10)
         except:
@@ -137,125 +264,96 @@ def stop_all_containers(minio=False):
 
     if current_job.robomaker_container:
         try:
+            app.logger.info("Stopping Robomaker")
             current_job.robomaker_container.kill()
         except:
             pass
     if current_job.coach_container:
         try:
+            app.logger.info("Stopping Coach")
             current_job.coach_container.kill()
         except:
             pass
     if minio:
         if current_job.minio_container:
             try:
+                app.logger.info("Stopping Minio")
                 current_job.minio_container.kill()
             except:
                 pass
 
 
-
-
-def tail_robomaker_logs(robomaker):
-    app.logger.info("IN TAIL_ROBOMAKER_LOGS")
-    line = ""
-    generator = robomaker.logs(stream=True, follow=True)
-    for line in generator:
-        if line != "":
-            pass
-            # app.logger.info("ROBOMAKER: %s" % line.decode('utf-8').strip('\n'))
-
-    app.logger.info("tail_robomaker_logs() exiting")
-
-
-def tail_sagemaker_logs(sagemaker):
-    app.logger.info("IN TAIL_SAGEMAKER_LOGS")
-    line = ""
-    generator = sagemaker.logs(stream=True, follow=True, tail=250)
-    # for line in generator:
-    #     app.logger.info("SAGEMAKER: %s" % line.decode('utf-8').strip('\n'))
-
-    line = ""
-    for char in generator:
-        # print(char.decode("utf-8"))
-        if char == b"\n":
-            # print(char.decode("utf-8"))
-            # print("===========")
-            # app.logger.info("SAGEMAKER: %s" % line.strip())
-
-            # Training> Name=main_level/agent, Worker=0, Episode=1134, Total reward=13.07, Steps=18594, Training iteration=56
-            # Policy training> Surrogate loss=-0.08529137820005417, KL divergence=0.290351539850235, Entropy=0.8986915946006775, training epoch=2, learning_rate=0.0003
-            # Best checkpoint number: 47, Last checkpoint number: 55
-
-            m = re.match(
-                r"Training> Name=main_level/agent, Worker=(\d+), Episode=(\d+), Total reward=(\d+).\d+, Steps=(\d+), Training iteration=(\d+)",
-                line)
-            if m:
-                current_job.status['episode_number'] = int(m.groups(2)[1])
-                current_job.status['iteration_number'] = int(m.groups(2)[4])
-                current_job.training_job.episodes_trained = current_job.status['episode_number']
-                db.session.commit()
-
-            m = re.match(
-                r"Policy training> Surrogate loss=(-?\d+\.\d+), KL divergence=(-?\d+\.\d+), Entropy=(-?\d+\.\d+), training epoch=(\d+), learning_rate=(\d+\.\d+)",
-                line)
-            if m:
-                current_job.entropy_metrics.append({"iteration": current_job.status['iteration_number'],
-                                                    "entropy": float(m.groups(2)[2]),
-                                                    "epoch": int(m.groups(2)[3])
-                                                    })
-
-            m = re.match(r"Best checkpoint number: (\d+), Last checkpoint number: (\d+)", line)
-            if m:
-                current_job.status['best_checkpoint'] = int(m.groups(2)[0])
-
-            line = ""
-        else:
-            line = line + char.decode("utf-8")
-
-    app.logger.info("tail_sagemaker_logs() exiting")
-
-
-def tail_metrics():
-    app.logger.info("IN tail_metrics()")
-    cwd = os.getcwd()
-    logfile = "%s/data/minio/bucket/DeepRacer-Metrics/TrainingMetrics.json" % cwd
-
-    while not os.path.exists(logfile):
-        time.sleep(1)
-
-    app.logger.info("Found metrics file")
-
-    last_position = 0
-    while True:
-        with open(logfile) as f:
-            f.seek(last_position)
-            new_data = f.read()
-            last_position = f.tell()
-
-        if new_data != "":
-            try:
-                metric = json.loads(new_data[:-2])
-                current_job.metrics.append(metric)
-                app.logger.info("METRIC: %s" % metric)
-            except Exception as e:
-                app.logger.info("ERROR Json decoding metric: %s" % e)
-
-        time.sleep(1)
-
-
 def check_if_already_running():
+    app.logger.info("In check_if_already_running()")
+    if not current_job:
+        app.logger.warning("No current job")
+        return 0
+
     current_job.update_status()
+
+    if current_job.training_job is None:
+        if current_job.robomaker_container and current_job.status['robomaker_status'] == "running":
+            app.logger.info("Found running robomaker container")
+
+
+
+        running_jobs = TrainingJob.query.filter_by(status="training").all()
+        print("Found {} jobs in training state".format(len(running_jobs)))
+
+        if len(running_jobs) > 1:
+            app.logger.error("Found {} jobs in training state! This should not happen!".format(len(running_jobs)))
+
+        if len(running_jobs):
+            current_job.configure_from_queued_job(running_jobs[0])
+
     if current_job.status['minio_status'] == "running" and current_job.status['coach_status'] == "running" and \
             current_job.status['robomaker_status'] == "running" and current_job.status['sagemaker_status'] == "running":
         app.logger.info("Found all running containers")
 
-        robomaker_tail = threading.Thread(target=tail_robomaker_logs, args=(current_job.robomaker_container,))
-        robomaker_tail.start()
+        if current_job.robotail is None:
+            current_job.robotail = threading.Thread(target=tail_robomaker_logs, args=(current_job.robomaker_container,))
+            current_job.robotail.start()
+        else:
+            if not current_job.robotail.is_alive():
+                current_job.robotail = threading.Thread(target=tail_robomaker_logs,
+                                                        args=(current_job.robomaker_container,))
+                current_job.robotail.start()
+            else:
+                app.logger.info("Robomaker tail thread already running, not restarting")
 
-        metrics_tail = threading.Thread(target=tail_metrics)
-        metrics_tail.start()
+        if current_job.metricstail is None:
+            current_job.metricstail = threading.Thread(target=tail_metrics)
+            current_job.metricstail.start()
+        else:
+            if not current_job.metricstail.is_alive():
+                current_job.metricstail = threading.Thread(target=tail_metrics)
+                current_job.metricstail.start()
+            else:
+                app.logger.info("Metrics tail thread already running, not restarting")
 
-        sagemaker_tail = threading.Thread(target=tail_sagemaker_logs, args=(current_job.sagemaker_container,))
-        sagemaker_tail.start()
+        start_sagemaker_log_tail()
+        # if current_job.sagetail is None:
+        #     app.logger.info("No sagemaker tail thread found, starting")
+        #     current_job.sagetail = threading.Thread(target=tail_sagemaker_logs, args=(current_job.sagemaker_container,))
+        #     current_job.sagetail.start()
+        # else:
+        #     if not current_job.sagetail.is_alive():
+        #         app.logger.info("Sagetail thread found but not running, starting")
+        #         current_job.sagetail = threading.Thread(target=tail_sagemaker_logs,
+        #                                                 args=(current_job.sagemaker_container,))
+        #         current_job.sagetail.start()
+        #     else:
+        #         app.logger.info("Sagemaker tail thread already running, not restarting")
+    else:
+        app.logger.info("Not all containers are running")
+        app.logger.info("  Minio: {}".format(current_job.status['minio_status']))
+        app.logger.info("  Robomaker: {}".format(current_job.status['robomaker_status']))
+        app.logger.info("  Coach: {}".format(current_job.status['coach_status']))
+        app.logger.info("  Sagemaker: {}".format(current_job.status['sagemaker_status']))
+        jobs = TrainingJob.query.filter_by(status="training").all()
+        for job in jobs:
+            app.logger.info("Setting previously training job {} as stopped".format(job.name))
+            job.status = "stopped"
+            db.session.commit()
 
     return 1

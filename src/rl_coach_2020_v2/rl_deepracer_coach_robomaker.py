@@ -135,7 +135,7 @@ estimator = RLEstimator(entry_point="training_worker.py",
                         output_path=s3_output_path,
                         base_job_name=job_name,
                         # image_name="richardfan1126/sagemaker-rl-tensorflow:console_v2.0",
-                        image_name="mattcamp/dr-sagemaker:nvidia",
+                        image_name="awsdeepracercommunity/deepracer-sagemaker:gpu",
                         train_max_run=job_duration_in_seconds,  # Maximum runtime in seconds
                         hyperparameters=hyperparameters,
                         metric_definitions=metric_definitions,

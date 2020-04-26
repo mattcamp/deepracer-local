@@ -6,10 +6,10 @@ client = docker.from_env()
 
 class CurrentJob():
     def __init__(self):
-
+        print("*** CurrentJob init")
         self.minio_image = "minio/minio"
         self.coach_image = "mattcamp/dr-coach"
-        self.robomaker_image = "awsdeepracercommunity/deepracer-robomaker:matt"
+        self.robomaker_image = "awsdeepracercommunity/deepracer-robomaker:2.0.2-cpu-avx2"
 
         self.docker_env = {
             'ALTERNATE_DRIVING_DIRECTION': None,
@@ -17,7 +17,7 @@ class CurrentJob():
             'AWS_REGION': "us-east-1",
             'AWS_ACCESS_KEY_ID': "your_aws_access_key",
             'AWS_SECRET_ACCESS_KEY': "your_aws_secret_key",
-            'CHANGE_START_POSITION': None,
+            'CHANGE_START_POSITION': True,
             'GPU_AVAILABLE': True,
             'KINESIS_VIDEO_STREAM_NAME': "dr-kvs-local",
             'LOCAL': True,
@@ -32,6 +32,7 @@ class CurrentJob():
             'SAGEMAKER_SHARED_S3_BUCKET': "bucket",
             'SAGEMAKER_SHARED_S3_PREFIX': "current",
             'WORLD_NAME': None,
+            "TRAINING_JOB_ID": None,
             'ENABLE_KINESIS': "false",
             'ENABLE_GUI': "true"
         }
@@ -67,17 +68,25 @@ class CurrentJob():
         self.entropy_metrics = []
 
         self.training_job = None
+        self.training_job_id = None
         self.minio_container = None
         self.coach_container = None
         self.robomaker_container = None
         self.sagemaker_container = None
+        self.robotail = None
+        self.sagetail = None
+        self.metricstail = None
+
+        self.desired_state = None
+        self.target_episodes = 0
 
         self.status = {
+            'job_id': None,
             'coach_status': None,
             'robomaker_status': None,
             'sagemaker_status': None,
-            'episode_number': None,
-            'iteration_number': None,
+            'episode_number': 0,
+            'iteration_number': 0,
             'best_checkpoint': None
         }
         self.update_status()
@@ -91,7 +100,10 @@ class CurrentJob():
         self.status['minio_status'] = None
 
         for container in client.containers.list():
-            container.reload()
+            try:
+                container.reload()
+            except:
+                continue
             if "sagemaker" in container.attrs['Config']['Image']:
                 self.status['sagemaker_status'] = container.attrs['State']['Status']
                 if not self.sagemaker_container:
@@ -101,6 +113,7 @@ class CurrentJob():
                 self.status['robomaker_status'] = container.attrs['State']['Status']
                 if not self.robomaker_container:
                     self.robomaker_container = container
+                # print(container.attrs)
 
             if "coach" in container.attrs['Config']['Image']:
                 self.status['coach_status'] = container.attrs['State']['Status']
@@ -115,8 +128,15 @@ class CurrentJob():
 
 
 
+
+
     def configure_from_queued_job(self, job):
         self.training_job = job
+        self.training_job_id = job.id
+        self.target_episodes = job.episodes
+        self.status["job_id"] = job.id
+
+        print("Loading job: {}".format(job))
 
         self.docker_env['WORLD_NAME'] = job.track
         self.docker_env['MODEL_S3_PREFIX'] = job.name
@@ -132,9 +152,18 @@ class CurrentJob():
         self.docker_env['HP_LEARNING_RATE'] = job.learning_rate
         self.docker_env['HP_EPISODES_BETWEEN_TRAINING'] = job.episodes_between_training
         self.docker_env['HP_EPOCHS'] = job.epochs
-        self.docker_env['PRETRAINED_MODEL'] = job.pretrained_model
+        self.docker_env['TRAINING_JOB_ID'] = job.id
+
+        if job.pretrained_model != "None":
+            print("Adding pretrained model")
+            self.docker_env['PRETRAINED_MODEL'] = job.pretrained_model
+        else:
+            print("No pretrained model")
+
+        self.docker_env['ENABLE_KINESIS'] = "False"
 
         self.training_params['WORLD_NAME'] = job.track
+        self.training_params['NUMBER_OF_EPISODES'] = job.episodes
         self.training_params['SAGEMAKER_SHARED_S3_PREFIX'] = job.name
         self.training_params['CHANGE_START_POSITION'] = job.change_start_position
         self.training_params['ALTERNATE_DRIVING_DIRECTION'] = job.alternate_direction

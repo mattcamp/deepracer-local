@@ -40,4 +40,3 @@ TODO: Get Kinesis working with localstack for local video streams.
 - Current sagemaker image is built for nvidia GPU only. Robomaker is currently CPU. 
 - The sagemaker image is huge (4.52GB)
 
-

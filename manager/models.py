@@ -27,11 +27,15 @@ class TrainingJob(BaseModel):
     change_start_position = db.Column(db.Boolean, default=True)
     alternate_direction = db.Column(db.Boolean, default=False)
     pretrained_model = db.Column(db.String(128), default=None)
+
     status = db.Column(db.String(64), default="queued")
     episodes_trained = db.Column(db.Integer, default=0)
     laps_complete = db.Column(db.Integer, default=0)
     average_pct_complete = db.Column(db.Float, default=0.0)
     best_lap_time = db.Column(db.Float, default=0.0)
+    minutes_target = db.Column(db.Integer, default=0)
+    minutes_trained = db.Column(db.Integer, default=0)
+    start_timestamp = db.Column(db.DateTime)
 
     def __repr__(self):
         return '<TrainingJob {}>'.format(self.name)

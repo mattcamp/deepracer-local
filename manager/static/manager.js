@@ -4,12 +4,32 @@ var minioStatus;
 var coachStatus;
 var sagemakerStatus;
 var robomakerStatus;
+var previousRobomakerStatus = null;
 var metrics;
 var rewardGraph;
 var completionGraph;
 var lastMetricsEpisode = 0;
 var lastPhase = null;
 var jobsTable;
+var jobToDelete = null;
+var jobsData;
+var currentJobID = null;
+
+(function($, window) {
+  $.fn.replaceOptions = function(options) {
+    var self, $option;
+
+    this.empty();
+    self = this;
+
+    $.each(options, function(index, option) {
+      $option = $("<option></option>")
+        .attr("value", option.value)
+        .text(option.text);
+      self.append($option);
+    });
+  };
+})(jQuery, window);
 
 
 $(document).ready(function () {
@@ -26,6 +46,16 @@ $(document).ready(function () {
     });
 
     $('#addJobButton').click(function () {
+        // jobsData.forEach(function (row) {
+        //     if(row.status=="queued") {
+        //
+        //     }
+        //     console.log(row.status);
+        // });
+        $.get("/pretrained_dirs")
+            .done(function (data) {
+                $("#pretrained_model").replaceOptions(data);
+            });
         $("#id").val(null);
         $("#name").val("");
         $("#newJobModal").modal();
@@ -46,6 +76,7 @@ function updateStatus() {
             coachStatus = data['coach_status'];
             sagemakerStatus = data['sagemaker_status'];
             robomakerStatus = data['robomaker_status'];
+            currentJobID = data['job_id'];
             $('#sessionIteration').html(data['iteration_number']);
             $('#sessionBestCheckpoint').html(data['best_checkpoint']);
 
@@ -54,6 +85,9 @@ function updateStatus() {
                 $('#sessionState').html("Running");
                 $('#startButton').prop('disabled', true);
                 $('#stopButton').prop('disabled', false);
+                if (robomakerStatus != previousRobomakerStatus) {
+                    startVideo();
+                }
             } else if (coachStatus || sagemakerStatus || robomakerStatus) {
                 $('#startButton').prop('disabled', false);
                 $('#stopButton').prop('disabled', false);
@@ -78,12 +112,13 @@ function updateStatus() {
             $("#coachStatus").html(coachStatus);
             $("#sagemakerStatus").html(sagemakerStatus);
             $("#robomakerStatus").html(robomakerStatus);
+            previousRobomakerStatus = robomakerStatus;
 
         })
         .fail(function () {
             console.log("GET /current_job error");
         });
-        updateJobTable();
+    updateJobTable();
 }
 
 function saveJob() {
@@ -106,30 +141,63 @@ function saveJob() {
         })
 }
 
-var editIcon = function(cell, formatterParams, onRendered){ //plain text value
+var editIcon = function (cell, formatterParams, onRendered) { //plain text value
     return "<i class='fa fa-edit'></i>";
 };
 
-var delIcon = function(cell, formatterParams, onRendered){ //plain text value
+var delIcon = function (cell, formatterParams, onRendered) { //plain text value
     return "<i class='fa fa-trash-alt'></i>";
 };
 
+function deleteJob(job_id, confirmed = false) {
+    if (confirmed) {
+        console.log("Deleting job " + job_id);
+        $('#deleteJobModal').modal('hide');
+        $.ajax({
+            url: '/job/'+job_id,
+            type: 'DELETE',
+            success: function (result) {
+                console.log(result);
+                updateJobTable();
+            }
+        });
+
+    } else {
+
+        $('#deleteJobButton').click(function () {
+            deleteJob(job_id, confirmed = true);
+        });
+
+        $('#deleteJobModal').modal();
+    }
+}
+
+
 function initJobTable() {
     var columns = [
-        {title:"Job Name", field:"name", sorter:"string"},
-        {title:"Episodes", field:"episodes", sorter:"number", align:"center"},
-        {title:"Track", field:"track", sorter:"string", align: "center"},
-        {title:"Status", field:"status", formatter:"string", align:"center"},
-        {title:"Laps complete", field:"laps_complete", sorter:"number", align: "center"},
-        {title:"% laps complete", field:"average_pct_complete", sorter:"number", align:"center"},
-        {title:"Fastest lap", field:"best_lap_time", sorter:"number", align:"center"},
-        {formatter:editIcon, width:40, align:"center", cellClick:function(e, cell){editJob(cell.getRow().getData().id)}},
-        {formatter:delIcon, width:40, align:"center", cellClick:function(e, cell){alert("Printing row data for: " + cell.getRow().getData().name)}}
+        {title: "Job Name", field: "name", sorter: "string"},
+        {title: "Episodes", field: "episodes", sorter: "number", align: "center"},
+        {title: "Track", field: "track", sorter: "string", align: "center"},
+        {title: "Status", field: "status", formatter: "string", align: "center"},
+        {title: "Episodes trained", field: "episodes_trained", formatter: "string", align: "center"},
+        {title: "Laps complete", field: "laps_complete", sorter: "number", align: "center"},
+        {title: "% laps complete", field: "average_pct_complete", sorter: "number", align: "center"},
+        {title: "Fastest lap", field: "best_lap_time", sorter: "number", align: "center"},
+        {
+            formatter: editIcon, width: 40, align: "center", cellClick: function (e, cell) {
+                editJob(cell.getRow().getData().id)
+            }
+        },
+        {
+            formatter: delIcon, width: 40, align: "center", cellClick: function (e, cell) {
+                deleteJob(cell.getRow().getData().id)
+            }
+        }
     ];
     let url = "/jobs";
     jobsTable = new Tabulator("#jobsTable", {
         columns: columns,
-        layout:"fitColumns",
+        layout: "fitColumns",
         height: "150"
         // ajaxURL: url
     });
@@ -140,9 +208,10 @@ function initJobTable() {
 function updateJobTable() {
     $.get("/jobs")
         .done(function (data) {
-            console.log("GET /jobs success");
-            if(jobsTable) {
-                jobsTable.replaceData(data)
+            // console.log("GET /jobs success");
+            if (jobsTable) {
+                jobsTable.replaceData(data);
+                jobsData = data;
             } else {
                 console.log("No table");
             }
@@ -154,11 +223,10 @@ function updateJobTable() {
 }
 
 
-
 function editJob(job_id) {
     // job_id = item.currentTarget.dataset["id"];
     console.log(job_id);
-    $.get("/job?job_id=" + job_id)
+    $.get("/job/" + job_id)
         .done(function (data) {
             console.log(data);
             for (var key in data) {
@@ -209,6 +277,7 @@ function stopTraining() {
         contentType: "application/json; charset=utf-8",
         success: function () {
             console.log("POST /current_job success");
+            $("#videoImg").attr("src", "/static/nosignal.png");
         }
     });
 
@@ -218,6 +287,7 @@ function startVideo() {
     $("#videoImg").attr("src", "http://127.0.0.1:8080/stream?topic=/racecar/deepracer/kvs_stream");
     $("#videoImg").bind("error", function () {
         console.log("video error");
+        $("#videoImg").unbind();
         $("#videoImg").attr("src", "/static/nosignal.png");
         setTimeout(startVideo, 3000)
     });
@@ -227,7 +297,7 @@ function getNewMetrics() {
     var jqxhr = $.get("/metrics?from_episode=" + lastMetricsEpisode)
         .done(function (data) {
             console.log("GET /metrics success");
-            console.log(data);
+            // console.log(data);
             // data.forEach(addJobRow);
             return (data)
         })
@@ -356,10 +426,15 @@ function initGraphs() {
 function updateGraphs() {
     if (systemState != "running") {
         console.log("Not running yet so not updating graphs");
-        return 0
+        return 0;
     }
+    if (currentJobID == null) {
+        console.log("No training job ID yet")
+        return 0;
+    }
+
     console.log("Starting data update from episode " + lastMetricsEpisode);
-    $.get("/metrics?from_episode=" + lastMetricsEpisode)
+    $.get("/metrics/"+ currentJobID+"?from_episode=" + lastMetricsEpisode)
         .done(function (data) {
             let sumReward = 0;
             let sumCompletion = 0;
@@ -370,7 +445,7 @@ function updateGraphs() {
 
             data.forEach(function (metric) {
                 if (metric['phase'] == "training") {
-                    console.log("TRAIN: " + metric['episode'] + " Reward: " + metric['reward_score'] + " Complete: " + metric['completion_percentage']);
+                    // console.log("TRAIN: " + metric['episode'] + " Reward: " + metric['reward_score'] + " Complete: " + metric['completion_percentage']);
 
                     if (lastPhase == "evaluation") {
                         // Calculate eval average and update graph
@@ -388,7 +463,7 @@ function updateGraphs() {
                             completionGraph.data.datasets[1].data.push(null);
                             completionGraph.update();
 
-                            console.log("PLOTTING: Episode: " + episode + " Reward: " + averageReward);
+                            // console.log("PLOTTING: Episode: " + episode + " Reward: " + averageReward);
                             sumReward = 0;
                             sumCompletion = 0;
                             evalCount = 0;
@@ -423,7 +498,7 @@ function updateGraphs() {
                     sumCompletion += metric['completion_percentage'];
                     evalCount++;
 
-                    console.log("EVAL: " + metric['episode'] + " Reward: " + metric['reward_score'] + " Complete: " + metric['completion_percentage']);
+                    // console.log("EVAL: " + metric['episode'] + " Reward: " + metric['reward_score'] + " Complete: " + metric['completion_percentage']);
                     lastPhase = "evaluation";
                 }
 
