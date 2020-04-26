@@ -9,7 +9,7 @@ services:
   minio:
     image: minio/minio
     ports:
-      - "9000:9000"
+      - "127.0.0.1:9000:9000"
     container_name: minio
     command: server /data
     volumes:
@@ -32,8 +32,8 @@ services:
     volumes:
       - ./data/robomaker:/root/.ros/
     ports:
-      - "8080:5900"
-      - "8888:8080" 
+      - "127.0.0.1:8080:5900"
+      - "127.0.0.1:8888:8080"
     container_name: robomaker
     restart: unless-stopped
     env_file: config.env
