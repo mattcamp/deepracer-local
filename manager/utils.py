@@ -294,11 +294,11 @@ def check_if_already_running():
     if current_job.training_job is None:
         if current_job.robomaker_container and current_job.status['robomaker_status'] == "running":
             app.logger.info("Found running robomaker container")
-
-
-
-        running_jobs = TrainingJob.query.filter_by(status="training").all()
-        print("Found {} jobs in training state".format(len(running_jobs)))
+        try:
+            running_jobs = TrainingJob.query.filter_by(status="training").all()
+            print("Found {} jobs in training state".format(len(running_jobs)))
+        except Exception as e:
+            return 0
 
         if len(running_jobs) > 1:
             app.logger.error("Found {} jobs in training state! This should not happen!".format(len(running_jobs)))
