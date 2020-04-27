@@ -3,6 +3,7 @@ import sys
 import logging
 import threading
 import redis
+import click
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -49,24 +50,27 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 db.init_app(app)
 
-current_job = CurrentJob()
 
-from manager import routes, models
-from manager.utils import check_if_already_running, start_next_job, stop_all_containers, main_loop, init_redis
+if click.get_current_context().command.name == "run":
+    current_job = CurrentJob()
 
-# session = db.session()
-# print(session.expire_on_commit)
-# session.expire_on_commit=True
+    from manager import routes, models
+    from manager.utils import check_if_already_running, start_next_job, stop_all_containers, main_loop, init_redis
 
-models.BaseModel.set_session(db.session)
+    # session = db.session()
+    # print(session.expire_on_commit)
+    # session.expire_on_commit=True
 
-init_redis()
-app.redis = redis.Redis()
+    models.BaseModel.set_session(db.session)
 
-check_if_already_running()
-app.logger.info("Startup complete")
+    init_redis()
+    app.redis = redis.Redis()
 
-last_status = None
+    check_if_already_running()
+    app.logger.info("Startup complete")
 
-main_loop_thread = threading.Thread(target=main_loop)
-main_loop_thread.start()
+    last_status = None
+
+    main_loop_thread = threading.Thread(target=main_loop)
+    main_loop_thread.start()
+

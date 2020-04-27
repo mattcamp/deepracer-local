@@ -151,6 +151,15 @@ def tail_metrics():
             if new_data != "":
                 try:
                     metric = json.loads(new_data[:-2])
+
+                    if metric["episode_status"] == "Lap complete":
+                        job = TrainingJob.query.get(current_job.training_job_id)
+                        db.session.refresh(job)
+                        job.laps_complete += 1
+                        if float(metric["elapsed_time_in_milliseconds"])/1000 > job.best_lap_time:
+                            job.best_lap_time = float(metric["elapsed_time_in_milliseconds"])/1000
+                        db.session.commit()
+
                     current_job.metrics.append(metric)
                     metric["job"] = current_job.training_job_id
                     key = "metrics-{}".format(current_job.training_job_id)
@@ -158,7 +167,7 @@ def tail_metrics():
                     app.logger.debug("METRIC: %s" % metric)
                     r.rpush(key, json.dumps(metric))
                 except Exception as e:
-                    app.logger.error("ERROR Json decoding metric: %s" % e)
+                    app.logger.error("Error decoding JSON metric: %s (This is OK during startup)" % e)
         except:
             pass
 

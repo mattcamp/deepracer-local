@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 2cd1647ab9be
+Revision ID: 79e6dc281387
 Revises: 
-Create Date: 2020-03-09 12:53:21.699846
+Create Date: 2020-04-27 11:36:20.080369
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '2cd1647ab9be'
+revision = '79e6dc281387'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -44,6 +44,9 @@ def upgrade():
     sa.Column('laps_complete', sa.Integer(), nullable=True),
     sa.Column('average_pct_complete', sa.Float(), nullable=True),
     sa.Column('best_lap_time', sa.Float(), nullable=True),
+    sa.Column('minutes_target', sa.Integer(), nullable=True),
+    sa.Column('minutes_trained', sa.Integer(), nullable=True),
+    sa.Column('start_timestamp', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_training_job_name'), 'training_job', ['name'], unique=True)

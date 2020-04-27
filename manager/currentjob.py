@@ -34,7 +34,7 @@ class CurrentJob():
             'WORLD_NAME': None,
             "TRAINING_JOB_ID": None,
             'ENABLE_KINESIS': "false",
-            'ENABLE_GUI': "true"
+            'ENABLE_GUI': "false"
         }
 
         self.training_params = {

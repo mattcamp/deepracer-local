@@ -1,1 +1,2 @@
-FLASK_APP=manager.py
+FLASK_APP=manager
+FLASK_RUN_HOST=0.0.0.0
