@@ -16,9 +16,11 @@
             crossorigin="anonymous"></script>
 
     <script src="https://kit.fontawesome.com/22ca60ec3f.js" crossorigin="anonymous"></script>
-{#    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>#}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.js"></script>
+    {#    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>#}
+    {#    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.bundle.min.js"></script>#}
+    {#    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.js"></script>#}
+
+    <script src="https://code.highcharts.com/highcharts.js"></script>
 
     <link href="/static/tabulator_midnight.css" rel="stylesheet">
     <script type="text/javascript" src="/static/tabulator.min.js"></script>
@@ -35,7 +37,13 @@
         <div class="flex-column">
             <div class="headerRow">
                 <div class="row">
-                    <div class="col-sm-8 headerLeft"><h2>DeepRacer Local Training</h2></div>
+                    <div class="col-sm-4 headerLeft"><h2>DeepRacer Local Training</h2></div>
+                    <div class="col-sm-4 headerMid">
+                        <div class="btn btn-sm btn-secondary btn-static" id="minioStatus">minio</div>
+                        <div class="btn btn-sm btn-secondary btn-static" id="coachStatus">coach</div>
+                        <div class="btn btn-sm btn-secondary btn-static" id="robomakerStatus">robomaker</div>
+                        <div class="btn btn-sm btn-secondary btn-static" id="sagemakerStatus">sagemaker</div>
+                    </div>
                     <div class="col-sm-4 headerRight">
                         <button class="btn btn-success" id="startButton">Start</button>
                         <button class="btn btn-danger" id="stopButton">Stop</button>
@@ -46,42 +54,42 @@
 
         <div class="mainRow flex-column flex-grow-1 overflow-auto">
 
-{#            <div id="jobQueueDiv" class="overflow-auto">#}
-                <div class="row">
-                    <div class="col-sm-10">Training Job Queue</div>
-                    <div class="col-sm-2 jobQueueHeaderRight">
-                        <button class="btn btn-primary btn-sm" id="addJobButton">
-                            <i class="fas fa-plus-circle"></i> Add Job
-                        </button>&nbsp;
-                    </div>
+            {#            <div id="jobQueueDiv" class="overflow-auto">#}
+            <div class="row">
+                <div class="col-sm-10">Training Job Queue</div>
+                <div class="col-sm-2 jobQueueHeaderRight">
+                    <button class="btn btn-primary btn-sm" id="addJobButton">
+                        <i class="fas fa-plus-circle"></i> Add Job
+                    </button>&nbsp;
                 </div>
-                <div id="jobQueueDiv" class="row">
-                    <div class="col-sm-12">
-                        <div id="jobsTable"></div>
-                    </div>
+            </div>
+            <div id="jobQueueDiv" class="row">
+                <div class="col-sm-12">
+                    <div id="jobsTable"></div>
                 </div>
+            </div>
 
 
-{#                <table class="table table-dark table-hover table-bordered table-sm" id="jobQueueTable">#}
-{#                    <thead>#}
-{#                    <tr>#}
-{#                        <th scope="col">#</th>#}
-{#                        <th scope="col">Name</th>#}
-{#                        <th scope="col">Episodes</th>#}
-{#                        <th scope="col">Track</th>#}
-{#                        <th scope="col">Status</th>#}
-{#                        <th scope="col">Laps complete</th>#}
-{#                        <th scope="col">Avg % laps complete</th>#}
-{#                        <th scope="col">Fastest lap</th>#}
-{#                        <th></th>#}
-{#                    </tr>#}
-{#                    </thead>#}
-{#                    <tbody id="jobQueueTableBody">#}
-{#                    <tr></tr>#}
-{##}
-{#                    </tbody>#}
-{#                </table>#}
-{#            </div>#}
+            {#                <table class="table table-dark table-hover table-bordered table-sm" id="jobQueueTable">#}
+            {#                    <thead>#}
+            {#                    <tr>#}
+            {#                        <th scope="col">#</th>#}
+            {#                        <th scope="col">Name</th>#}
+            {#                        <th scope="col">Episodes</th>#}
+            {#                        <th scope="col">Track</th>#}
+            {#                        <th scope="col">Status</th>#}
+            {#                        <th scope="col">Laps complete</th>#}
+            {#                        <th scope="col">Avg % laps complete</th>#}
+            {#                        <th scope="col">Fastest lap</th>#}
+            {#                        <th></th>#}
+            {#                    </tr>#}
+            {#                    </thead>#}
+            {#                    <tbody id="jobQueueTableBody">#}
+            {#                    <tr></tr>#}
+            {##}
+            {#                    </tbody>#}
+            {#                </table>#}
+            {#            </div>#}
 
             <div class="row statusRow">
                 <div class="containerStatus col-sm-3">
@@ -117,27 +125,36 @@
                     Training session status:
                     <table class="table table-dark table-sm">
                         <tr>
-                            <th>State:</th><td id="sessionState"></td>
+                            <th>State:</th>
+                            <td id="sessionState"></td>
                         </tr>
                         <tr>
-                            <th>Phase:</th><td id="sessionPhase"></td>
+                            <th>Phase:</th>
+                            <td id="sessionPhase"></td>
                         </tr>
                         <tr>
-                            <th>Episode:</th><td id="sessionEpisode"></td>
+                            <th>Episode:</th>
+                            <td id="sessionEpisode"></td>
                         </tr>
                         <tr>
-                            <th>Iteration:</th><td id="sessionIteration"></td>
+                            <th>Iteration:</th>
+                            <td id="sessionIteration"></td>
                         </tr>
                         <tr>
-                            <th>Best Checkpoint:</th><td id="sessionBestCheckpoint"></td>
+                            <th>Best Checkpoint:</th>
+                            <td id="sessionBestCheckpoint"></td>
                         </tr>
                     </table>
                 </div>
             </div>
 
             <div class="row statRow">
-                <div class="statBox col-sm-4"><canvas id="rewardGraph" width="100%"></canvas></div>
-                <div class="statBox col-sm-4"><canvas id="completionGraph" width="100%"></canvas></div>
+                <div class="statBox col-sm-4">
+                    <div id="rewardChart" width="100%"></div>
+                </div>
+                <div class="statBox col-sm-4">
+                    <div id="completeChart" width="100%"></div>
+                </div>
                 <div class="videoStream col-sm-4">
                     <img id="videoImg" width="100%" src="/static/nosignal.png">
                 </div>
@@ -148,7 +165,7 @@
     </div>
 
     <div class="flex-column">
-        <div class="footerRow p-0" style="height:50px">FOOTER</div>
+        <div class="footerRow p-0" id="footer"></div>
     </div>
 </div>
 
@@ -165,26 +182,67 @@
             <div class="modal-body">
 
                 {% macro render_field(field) %}
-                    <th scope="row">{{ field.label }}
-                    <td>{{ field(**kwargs)|safe }}
-                    {% if field.errors %}
-                        <ul class=errors>
-                        {% for error in field.errors %}
-                            <li>{{ error }}</li>
-                        {% endfor %}
-                    {% endif %}
+
+                    <div class="form-group row">
+                        <label for="{{ field.id }}" class="col-sm-2 col-form-label">{{ field.label.text }}</label>
+                        <div class="col-sm-10">
+                            {{ field(**kwargs)|safe }}
+
+                            {% if field.errors %}
+                                <ul class=errors>
+                                    {% for error in field.errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </div>
+                    </div>
                 {% endmacro %}
+
+
                 <form id="newJobForm">
+                    {{ form.csrf_token }}
+                    <input type="hidden" name="id" id="id">
                     <table class="table table-sm">
-                        {{ form.csrf_token }}
-                        <input type="hidden" name="id" id="id">
-                        {% for field in form if field.widget.input_type != 'hidden' %}
-                            <tr>
-                                {{ render_field(field) }}
-                            </tr>
-                        {% endfor %}
+
+                        {{ render_field(form.name) }}
+                        {{ render_field(form.race_type) }}
+                        {{ render_field(form.track) }}
+                        {{ render_field(form.reward_function_filename) }}
+                        {{ render_field(form.model_metadata_filename) }}
+                        {{ render_field(form.pretrained_model) }}
+                        {{ render_field(form.episodes) }}
+                        {{ render_field(form.episodes_between_training) }}
+                        {{ render_field(form.batch_size) }}
+                        {{ render_field(form.epochs) }}
+                        {{ render_field(form.learning_rate) }}
+                        {{ render_field(form.entropy) }}
+                        {{ render_field(form.discount_factor) }}
+                        {{ render_field(form.loss_type) }}
+
+                        {{ render_field(form.number_of_obstacles) }}
+                        {{ render_field(form.randomize_obstacle_locations) }}
+
+                        <div class="form-group row">
+                            <label for="change_start_position" class="col-sm-2 col-form-label">Change start position</label>
+                            <div class="col-sm-10">
+                                <input type="checkbox" id="change_start_position" name="change_start_position" value="true">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label for="alternate_driving_direction" class="col-sm-2 col-form-label">Alternate
+                                direction</label>
+                            <div class="col-sm-10">
+                                <input type="checkbox" id="alternate_driving_direction" name="alternate_driving_direction" value="true">
+                            </div>
+                        </div>
+
+
                     </table>
                 </form>
+
+
                 <div id="formError"></div>
 
             </div>
@@ -196,7 +254,6 @@
         </div>
     </div>
 </div>
-
 
 
 {# Delete job confirmation modal #}

@@ -9,7 +9,7 @@ class CurrentJob():
         print("*** CurrentJob init")
         self.minio_image = "minio/minio"
         self.coach_image = "mattcamp/dr-coach"
-        self.robomaker_image = "awsdeepracercommunity/deepracer-robomaker:2.0.2-cpu-avx2"
+        self.robomaker_image = "awsdeepracercommunity/deepracer-robomaker:2.0.3-cpu-avx2"
 
         self.docker_env = {
             'ALTERNATE_DRIVING_DIRECTION': None,
@@ -58,7 +58,7 @@ class CurrentJob():
             'METRIC_NAME': "TrainingRewardScore",
             'CAR_COLOR': "Purple",
             'TARGET_REWARD_SCORE': "None",
-            'NUMBER_OF_OBSTACLES': "3",
+            'NUMBER_OF_OBSTACLES': "0",
             'CHANGE_START_POSITION': "true",
             'OBSTACLE_TYPE': "BOX",
             'RANDOMIZE_OBSTACLE_LOCATIONS': "false"
@@ -136,11 +136,11 @@ class CurrentJob():
         self.target_episodes = job.episodes
         self.status["job_id"] = job.id
 
-        print("Loading job: {}".format(job))
+        print("Loading job: {}-{}".format(job.id, job.name))
 
         self.docker_env['WORLD_NAME'] = job.track
-        self.docker_env['MODEL_S3_PREFIX'] = job.name
-        self.docker_env['SAGEMAKER_SHARED_S3_PREFIX'] = job.name
+        self.docker_env['MODEL_S3_PREFIX'] = "{}-{}".format(job.id, job.name)
+        self.docker_env['SAGEMAKER_SHARED_S3_PREFIX'] = "{}-{}".format(job.id, job.name)
         self.docker_env['REWARD_FILE_S3_KEY'] = "custom_files/%s" % job.reward_function_filename
         self.docker_env['MODEL_METADATA_FILE_S3_KEY'] = "custom_files/%s" % job.model_metadata_filename
         self.docker_env['ALTERNATE_DRIVING_DIRECTION'] = job.alternate_direction
@@ -164,7 +164,7 @@ class CurrentJob():
 
         self.training_params['WORLD_NAME'] = job.track
         self.training_params['NUMBER_OF_EPISODES'] = job.episodes
-        self.training_params['SAGEMAKER_SHARED_S3_PREFIX'] = job.name
+        self.training_params['SAGEMAKER_SHARED_S3_PREFIX'] = "{}-{}".format(job.id, job.name)
         self.training_params['CHANGE_START_POSITION'] = job.change_start_position
         self.training_params['ALTERNATE_DRIVING_DIRECTION'] = job.alternate_direction
         self.training_params['REWARD_FILE_S3_KEY'] = "custom_files/%s" % job.reward_function_filename

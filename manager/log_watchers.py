@@ -12,11 +12,16 @@ from datetime import datetime
 
 client = docker.from_env()
 
+exclude_errors = [
+    "mean squared error",
+    "error_class"
+]
+
 def tail_robomaker_logs(robomaker):
     app.robologger.info("IN TAIL_ROBOMAKER_LOGS")
 
     cwd = os.getcwd()
-    logs_path = "%s/data/minio/bucket/%s/logs" % (cwd, current_job.training_job.name)
+    logs_path = "{}/data/minio/bucket/{}-{}/logs".format(cwd, current_job.training_job_id, current_job.training_job.name)
     if not os.path.exists(logs_path):
         app.logger.info("Creating logs directory: {}".format(logs_path))
         try:
@@ -33,6 +38,14 @@ def tail_robomaker_logs(robomaker):
     for line in generator:
         if line.decode('utf-8').strip('\n') != "":
             app.robologger.info("%s" % line.decode('utf-8').strip('\n'))
+            line_str = line.decode('utf-8').strip('\n').lower()
+            if "error" in line_str:
+                ok = False
+                for phrase in exclude_errors:
+                    if phrase in line_str:
+                        ok = True
+                if not ok:
+                    app.logger.error("ROBOMAKER: {}".format(line_str))
 
     app.robologger.info("tail_robomaker_logs() exiting")
 
@@ -46,7 +59,7 @@ def start_sagemaker_log_tail():
         time.sleep(1)
 
     cwd = os.getcwd()
-    logs_path = "%s/data/minio/bucket/%s/logs" % (cwd, current_job.training_job.name)
+    logs_path = "{}/data/minio/bucket/{}-{}/logs".format(cwd, current_job.training_job_id, current_job.training_job.name)
     if not os.path.exists(logs_path):
         app.logger.info("Creating logs directory: {}".format(logs_path))
         try:
@@ -72,61 +85,72 @@ def start_sagemaker_log_tail():
 
 
 def tail_sagemaker_logs(sagemaker):
-    app.sagelogger.info("IN TAIL_SAGEMAKER_LOGS")
 
-    generator = sagemaker.logs(stream=True, follow=True, tail=250)
+    while True:
+        app.sagelogger.info("IN TAIL_SAGEMAKER_LOGS")
 
-    line = ""
-    for char in generator:
-        line = line + char.decode("utf-8")
-        if char == b"\n":
-            app.sagelogger.info("{}".format(line.strip()))
+        generator = sagemaker.logs(stream=True, follow=True, tail=0)
 
-            # Training> Name=main_level/agent, Worker=0, Episode=1134, Total reward=13.07, Steps=18594, Training iteration=56
+        line = ""
+        for char in generator:
+            line = line + char.decode("utf-8")
+            if char == b"\n":
+                app.sagelogger.info("{}".format(line.strip()))
+                line_str = line.strip().lower()
+                if "error" in line_str:
+                    ok = False
+                    for phrase in exclude_errors:
+                        if phrase in line_str:
+                            ok = True
+                    if not ok:
+                        app.logger.error("SAGEMAKER: {}".format(line_str))
 
-            # Policy training> Surrogate loss=-0.08529137820005417, KL divergence=0.290351539850235, Entropy=0.8986915946006775, training epoch=2, learning_rate=0.0003
-            # Best checkpoint number: 47, Last checkpoint number: 55
 
-            m = re.match(
-                r"Training> Name=main_level/agent, Worker=(\d+), Episode=(\d+), Total reward=(\d+).\d+, Steps=(\d+), Training iteration=(\d+)",
-                line)
-            if m:
-                # print("Matched sagemaker line")
-                current_job.status['episode_number'] = int(m.groups(2)[1])
-                current_job.status['iteration_number'] = int(m.groups(2)[4])
-                if current_job.training_job:
-                    tj = TrainingJob.query.get(current_job.training_job_id)
-                    tj.episodes_trained = int(m.groups(2)[1])
+                # Training> Name=main_level/agent, Worker=0, Episode=1134, Total reward=13.07, Steps=18594, Training iteration=56
 
-                    app.logger.debug("start_timestamp: {}".format(tj.start_timestamp))
-                    if not tj.start_timestamp:
-                        app.logger.info("Setting start_timestamp to now")
-                        tj.start_timestamp = datetime.now()
+                # Policy training> Surrogate loss=-0.08529137820005417, KL divergence=0.290351539850235, Entropy=0.8986915946006775, training epoch=2, learning_rate=0.0003
+                # Best checkpoint number: 47, Last checkpoint number: 55
 
-                    db.session.commit()
-                else:
-                    app.sagelogger.warning("no current_job found, not writing episode count")
+                m = re.match(
+                    r"Training> Name=main_level/agent, Worker=(\d+), Episode=(\d+), Total reward=(\d+).\d+, Steps=(\d+), Training iteration=(\d+)",
+                    line)
+                if m:
+                    # print("Matched sagemaker line")
+                    current_job.status['episode_number'] = int(m.groups(2)[1])
+                    current_job.status['iteration_number'] = int(m.groups(2)[4])
+                    if current_job.training_job:
+                        tj = TrainingJob.query.get(current_job.training_job_id)
+                        tj.episodes_trained = int(m.groups(2)[1])
 
-            m = re.match(
-                r"Policy training> Surrogate loss=(-?\d+\.\d+), KL divergence=(-?\d+\.\d+), Entropy=(-?\d+\.\d+), training epoch=(\d+), learning_rate=(\d+\.\d+)",
-                line)
-            if m:
-                current_job.entropy_metrics.append({"iteration": current_job.status['iteration_number'],
-                                                    "entropy": float(m.groups(2)[2]),
-                                                    "epoch": int(m.groups(2)[3])
-                                                    })
-                app.logger.debug("POLICY TRAINING: Iteration {}\tEntropy: {}\tEpoch: {}".format(current_job.status['iteration_number'], float(m.groups(2)[2]), int(m.groups(2)[3])))
+                        app.logger.debug("start_timestamp: {}".format(tj.start_timestamp))
+                        if not tj.start_timestamp:
+                            app.logger.info("Setting start_timestamp to now")
+                            tj.start_timestamp = datetime.now()
 
-            m = re.match(r"Best checkpoint number: (\d+), Last checkpoint number: (\d+)", line)
-            if m:
-                current_job.status['best_checkpoint'] = int(m.groups(2)[0])
-                app.logger.debug("Best checkpoint now {}".format(current_job.status['best_checkpoint']))
+                        db.session.commit()
+                    else:
+                        app.sagelogger.warning("no current_job found, not writing episode count")
 
-            line = ""
+                m = re.match(
+                    r"Policy training> Surrogate loss=(-?\d+\.\d+), KL divergence=(-?\d+\.\d+), Entropy=(-?\d+\.\d+), training epoch=(\d+), learning_rate=(\d+\.\d+)",
+                    line)
+                if m:
+                    current_job.entropy_metrics.append({"iteration": current_job.status['iteration_number'],
+                                                        "entropy": float(m.groups(2)[2]),
+                                                        "epoch": int(m.groups(2)[3])
+                                                        })
+                    app.logger.debug("POLICY TRAINING: Iteration {}\tEntropy: {}\tEpoch: {}".format(current_job.status['iteration_number'], float(m.groups(2)[2]), int(m.groups(2)[3])))
 
-        # line = line + char.decode("utf-8")
+                m = re.match(r"Best checkpoint number: (\d+), Last checkpoint number: (\d+)", line)
+                if m:
+                    current_job.status['best_checkpoint'] = int(m.groups(2)[0])
+                    app.logger.debug("Best checkpoint now {}".format(current_job.status['best_checkpoint']))
 
-    app.sagelogger.info("***EXIT*** tail_sagemaker_logs() exiting")
+                line = ""
+
+            # line = line + char.decode("utf-8")
+
+        app.sagelogger.info("***EXIT*** tail_sagemaker_logs() exiting")
 
 
 def tail_metrics():

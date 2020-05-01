@@ -37,6 +37,9 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__)
 
+weblog = logging.getLogger('werkzeug')
+weblog.setLevel(logging.ERROR)
+
 # logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"), filename="manager/logs/manager.log")
 app.logger = setup_logger('main_logger', 'manager/logs/manager.log', plain=False, stdout=True)
 app.robologger = setup_logger('robomaker_logger', 'manager/logs/robomaker.log', plain=False)  # TODO: Change to True

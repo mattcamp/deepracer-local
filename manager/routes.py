@@ -9,6 +9,30 @@ import json
 from os.path import isfile, isdir, join
 import redis
 
+modeldirs = [('None', '----')]
+track_choices = [
+    ("Spain_track", "Circuit de Barcelona-Catalunya"),
+    ("AmericasGeneratedInclStart", "Baadal"),
+    ("LGSWide", "SOLA Speedway"),
+    ("Bowtie_track", "Bowtie"),
+    ("Canada_Training", "Toronto Turnpike"),
+    ("China_track", "Shanghai Sudu"),
+    ("Mexico_track", "Cumulo Carrera"),
+    ("New_York_Track", "Empire City"),
+    ("Oval_track", "Oval"),
+    ("reInvent2019_track", "2019 Championship cup"),
+    ("reInvent2019_wide_mirrored", "2019 Championship cup wide mirrored"),
+    ("reInvent2019_wide", "2019 Championship cup wide"),
+    ("reinvent_base", "re:Invent 2018"),
+    ("Straight_track", "Straight"),
+    ("Tokyo_Training_track", "Kumo Torakku"),
+    ("Vegas_track", "AWS Summit Raceway"),
+    ("Virtual_May19_Train_track", "London Loop")
+
+]
+reward_func_files = []
+metadata_files = []
+
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1", "y")
@@ -44,8 +68,8 @@ def index():
     cwd = getcwd()
     bucketpath = "{}/data/minio/bucket".format(cwd)
     customfiles_dir = "{}/custom_files".format(bucketpath)
+
     modeldirs = [('None', '----')]
-    # modeldirs = []
     metadata_files = []
     reward_func_files = []
     exclude_dirs = ["DeepRacer-Metrics", "custom_files"]
@@ -62,9 +86,9 @@ def index():
             if ".py" in cf:
                 reward_func_files.append((cf, cf))
 
-    track_choices = []
-    for track in tracks:
-        track_choices.append((track, track))
+    # track_choices = []
+    # for track in tracks:
+    #     track_choices.append((track, track))
 
     form = NewJobForm()
     form.track.choices = track_choices
@@ -76,8 +100,20 @@ def index():
 
 @app.route('/jobs', methods=["GET", "POST"])
 def jobs():
+    form = NewJobForm()
+    form.track.choices = track_choices
+    form.pretrained_model.choices = modeldirs
+    form.model_metadata_filename.choices = metadata_files
+    form.reward_function_filename.choices = reward_func_files
+
     if request.method == "POST":
-        form = NewJobForm()
+        print(request.form)
+
+        if form.validate_on_submit():
+            print("CHANGE_START_DATA: {}".format(form.change_start_position.data))
+        else:
+            print(form.errors)
+
         data = request.form.to_dict(flat=True)
         del data['csrf_token']
         app.logger.info("Saving job: %s" % data)
@@ -112,8 +148,12 @@ def jobs():
         this_job.loss_type = data['loss_type']
         this_job.number_of_obstacles = data['number_of_obstacles']
         this_job.randomize_obstacle_locations = str2bool(data['randomize_obstacle_locations'])
-        app.logger.debug("change_start: {}".format(data['change_start_position']))
-        app.logger.debug("str2bool: {}".format(str2bool(data['change_start_position'])))
+
+        app.logger.debug(
+            "change_start: {}={}".format(data['change_start_position'], str2bool(data['change_start_position'])))
+        app.logger.debug("alternate_direction: {}={}".format(data['alternate_driving_direction'],
+                                                             str2bool(data['alternate_driving_direction'])))
+
         this_job.change_start_position = str2bool(data['change_start_position'])
         this_job.alternate_direction = str2bool(data['alternate_driving_direction'])
         this_job.pretrained_model = data['pretrained_model']
@@ -226,11 +266,32 @@ def get_metrics(job_id):
 
         if metric['phase'] == "training" and metric['episode'] > int(from_episode):
             metrics_to_return.append(metric)
-            print(metric)
+            # print(metric)
 
         if metric['phase'] == "evaluation" and metric['episode'] >= int(from_episode):
             metrics_to_return.append(metric)
-            print(metric)
+            # print(metric)
+
+    return jsonify(metrics_to_return)
+
+
+@app.route('/metrics_averaged/<job_id>', methods=["GET"])
+def get_metrics_averaged(job_id):
+    from_episode = request.args.get('from_episode', -1)
+    metrics_to_return = []
+    r = redis.Redis()
+
+    key = "metrics-{}".format(job_id)
+    for i in range(0, r.llen(key)):
+        metric = json.loads(r.lindex(key, i).decode("utf-8"))
+
+        if metric['phase'] == "training" and metric['episode'] > int(from_episode):
+            metrics_to_return.append(metric)
+            # print(metric)
+
+        if metric['phase'] == "evaluation" and metric['episode'] >= int(from_episode):
+            metrics_to_return.append(metric)
+            # print(metric)
 
     return jsonify(metrics_to_return)
 

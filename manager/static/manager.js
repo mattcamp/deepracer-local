@@ -9,26 +9,45 @@ var metrics;
 var rewardGraph;
 var completionGraph;
 var lastMetricsEpisode = 0;
-var lastPhase = null;
+// var lastPhase = null;
 var jobsTable;
 var jobToDelete = null;
 var jobsData;
 var currentJobID = null;
 
-(function($, window) {
-  $.fn.replaceOptions = function(options) {
-    var self, $option;
+var rewardChart;
+var completeChart;
 
-    this.empty();
-    self = this;
+var best_episode = 0;
+var best_eval_complete = 0;
 
-    $.each(options, function(index, option) {
-      $option = $("<option></option>")
-        .attr("value", option.value)
-        .text(option.text);
-      self.append($option);
-    });
-  };
+var episodes_per_iteration = 20;
+
+// global vars for calculating metric averages
+var current_episode_number = 0;
+var current_episode_training_count = 0;
+var current_episode_training_reward_total = 0;
+var current_episode_training_completion_total = 0;
+var current_episode_eval_count = 0;
+var current_episode_eval_reward_total = 0;
+var current_episode_eval_completion_total = 0;
+var previous_phase = null;
+
+
+(function ($, window) {
+    $.fn.replaceOptions = function (options) {
+        var self, $option;
+
+        this.empty();
+        self = this;
+
+        $.each(options, function (index, option) {
+            $option = $("<option></option>")
+                .attr("value", option.value)
+                .text(option.text);
+            self.append($option);
+        });
+    };
 })(jQuery, window);
 
 
@@ -63,9 +82,20 @@ $(document).ready(function () {
 
     updateStatus();
     initJobTable();
-    setTimeout(initGraphs, 2000); // Delay 2s to let systemState update
+    setTimeout(initRewardChart, 2000); // Delay 2s to let systemState update
     setInterval(updateStatus, 2000);
+    setInterval(updateGraphs, 5000);
 });
+
+function setContainerStatus(element, status) {
+    if (status=="running") {
+        $("#"+element).removeClass("btn-secondary");
+        $("#"+element).addClass("btn-success");
+    } else {
+        $("#"+element).addClass("btn-secondary");
+        $("#"+element).removeClass("btn-success");
+    }
+}
 
 function updateStatus() {
     var jqxhr = $.get("/current_job")
@@ -88,6 +118,7 @@ function updateStatus() {
                 if (robomakerStatus != previousRobomakerStatus) {
                     startVideo();
                 }
+                // initRewardChart();
             } else if (coachStatus || sagemakerStatus || robomakerStatus) {
                 $('#startButton').prop('disabled', false);
                 $('#stopButton').prop('disabled', false);
@@ -98,7 +129,7 @@ function updateStatus() {
                 }
 
                 systemState = "partial";
-                $('#sessionState').html("partial");
+                // $('#sessionState').html("partial");
 
 
             } else {
@@ -108,10 +139,10 @@ function updateStatus() {
                 $('#stopButton').prop('disabled', true);
             }
 
-            $("#minioStatus").text(minioStatus);
-            $("#coachStatus").html(coachStatus);
-            $("#sagemakerStatus").html(sagemakerStatus);
-            $("#robomakerStatus").html(robomakerStatus);
+            setContainerStatus("minioStatus", minioStatus);
+            setContainerStatus("coachStatus", coachStatus);
+            setContainerStatus("robomakerStatus", robomakerStatus);
+            setContainerStatus("sagemakerStatus", sagemakerStatus);
             previousRobomakerStatus = robomakerStatus;
 
         })
@@ -128,6 +159,11 @@ function saveJob() {
         var input = $(this);
         data[input.attr('name')] = input.val();
     });
+
+    data["change_start_position"] = $("#change_start_position").is(':checked');
+    data["alternate_driving_direction"] = $("#alternate_driving_direction").is(':checked');
+    data["randomize_obstacle_locations"] = $("#randomize_obstacle_locations").is(':checked');
+
     var jqxhr = $.post("/jobs", data)
         .done(function () {
             console.log("POST /jobs success");
@@ -154,7 +190,7 @@ function deleteJob(job_id, confirmed = false) {
         console.log("Deleting job " + job_id);
         $('#deleteJobModal').modal('hide');
         $.ajax({
-            url: '/job/'+job_id,
+            url: '/job/' + job_id,
             type: 'DELETE',
             success: function (result) {
                 console.log(result);
@@ -176,12 +212,11 @@ function deleteJob(job_id, confirmed = false) {
 function initJobTable() {
     var columns = [
         {title: "Job Name", field: "name", sorter: "string"},
-        {title: "Episodes", field: "episodes", sorter: "number", align: "center"},
+        {title: "Target Episodes", field: "episodes", sorter: "number", align: "center"},
         {title: "Track", field: "track", sorter: "string", align: "center"},
         {title: "Status", field: "status", formatter: "string", align: "center"},
         {title: "Episodes trained", field: "episodes_trained", formatter: "string", align: "center"},
         {title: "Laps complete", field: "laps_complete", sorter: "number", align: "center"},
-        {title: "% laps complete", field: "average_pct_complete", sorter: "number", align: "center"},
         {title: "Fastest lap", field: "best_lap_time", sorter: "number", align: "center"},
         {
             formatter: editIcon, width: 40, align: "center", cellClick: function (e, cell) {
@@ -258,7 +293,18 @@ function startTraining() {
             console.log("POST /current_job success");
         }
     });
+
+    rewardChart.series[0].data = [];
+    rewardChart.series[1].data = [];
+    rewardChart.series[2].data = [];
+    completeChart.series[0].data = [];
+    completeChart.series[1].data = [];
+    completeChart.series[2].data = [];
+    completeChart.series[3].data = [];
+
+
     setTimeout(startVideo, 5000);
+    initRewardChart();
 }
 
 function stopTraining() {
@@ -284,7 +330,8 @@ function stopTraining() {
 }
 
 function startVideo() {
-    $("#videoImg").attr("src", "http://127.0.0.1:8080/stream?topic=/racecar/deepracer/kvs_stream");
+    video_url = "http://" + window.location.hostname + ":8080/stream?topic=/racecar/deepracer/kvs_stream";
+    $("#videoImg").attr("src", video_url);
     $("#videoImg").bind("error", function () {
         console.log("video error");
         $("#videoImg").unbind();
@@ -306,207 +353,114 @@ function getNewMetrics() {
         });
 }
 
-function initGraphs() {
-    console.log("initGraphs()");
-    rewardGraphCanvas = document.getElementById('rewardGraph');
-    completionGraphCanvas = document.getElementById('completionGraph');
-
-    rewardGraphData = {
-        labels: [],
-        datasets: [{
-            label: 'Eval',
-            data: [],
-            backgroundColor: [
-                'rgba(255, 99, 132, 0.8)'
-            ],
-            borderColor: 'rgba(255, 99, 132, 1)',
-            pointBorderWidth: 0,
-            pointRadius: 3,
-            // pointBorderColor: 'rgba(255, 0, 0, 1)',
-            borderWidth: 1,
-            spanGaps: true,
-            fill: false
-        },
-            {
-                label: 'Training',
-                data: [],
-                backgroundColor: [
-                    'rgba(0, 99, 255, 0.8)'
-                ],
-                pointRadius: 0,
-                spanGaps: false,
-                borderColor: 'rgba(0, 99, 255, 1)',
-                // pointBorderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1,
-                fill: true
-            },
-        ]
-    };
-
-    rewardGraphOptions = {
-        title: {
-            display: true,
-            text: "Reward"
-        },
-        aspectRatio: 1.25,
-        scales: {
-            yAxes: [{
-                ticks: {
-                    beginAtZero: true
-                }
-            }]
-        }
-    };
-
-    completionGraphData = {
-        labels: [],
-        datasets: [{
-            label: 'Eval',
-            data: [],
-            backgroundColor: [
-                'rgba(255, 200, 0, 0.6)'
-            ],
-            borderColor: 'rgba(255, 160, 0, 1)',
-            pointBorderWidth: 0,
-            pointRadius: 3,
-            // pointBorderColor: 'rgba(255, 0, 0, 1)',
-            borderWidth: 1,
-            spanGaps: true,
-            fill: false
-        },
-            {
-                label: 'Training',
-                data: [],
-                backgroundColor: [
-                    'rgba(0, 255, 128, 0.6)'
-                ],
-                pointRadius: 0
-                // borderColor: 'rgba(0, 99, 255, 1)',
-                // pointBorderColor: 'rgba(54, 162, 235, 1)',
-                // borderWidth: 1
-            },
-        ]
-    };
-
-    completionGraphOptions = {
-        title: {
-            display: true,
-            text: "Completion %"
-        },
-        aspectRatio: 1.25,
-        scales: {
-            yAxes: [{
-                scaleLabel: {
-                    display: true
-                },
-                ticks: {
-                    beginAtZero: true
-                }
-            }]
-        }
-    };
-
-
-    rewardGraph = new Chart(rewardGraphCanvas, {
-        type: 'line',
-        data: rewardGraphData,
-        options: rewardGraphOptions
-    });
-
-    completionGraph = new Chart(completionGraphCanvas, {
-        type: 'line',
-        data: completionGraphData,
-        options: completionGraphOptions
-    });
-
-    updateGraphs();
-    setInterval(updateGraphs, 10000);
-}
-
 function updateGraphs() {
     if (systemState != "running") {
-        console.log("Not running yet so not updating graphs");
+        // console.log("Not running yet so not updating graphs");
         return 0;
     }
     if (currentJobID == null) {
-        console.log("No training job ID yet")
+        // console.log("No training job ID yet")
         return 0;
     }
-
-    console.log("Starting data update from episode " + lastMetricsEpisode);
-    $.get("/metrics/"+ currentJobID+"?from_episode=" + lastMetricsEpisode)
+    footer("Fetching metrics since episode "+lastMetricsEpisode);
+    // console.log("Starting data update from episode " + lastMetricsEpisode);
+    $.get("/metrics/" + currentJobID + "?from_episode=" + lastMetricsEpisode)
         .done(function (data) {
-            let sumReward = 0;
-            let sumCompletion = 0;
-            let evalCount = 0;
             let episode = 0;
-            let iteration = 0;
             let phase = null;
-
+            let new_best_episode = 0;
+            // console.log("Got " + data.length + " metrics");
+            footer("Processing metrics...");
             data.forEach(function (metric) {
-                if (metric['phase'] == "training") {
-                    // console.log("TRAIN: " + metric['episode'] + " Reward: " + metric['reward_score'] + " Complete: " + metric['completion_percentage']);
+                // console.log(metric);
+                phase = metric["phase"];
+                // iteration = metric["trial"];
 
-                    if (lastPhase == "evaluation") {
-                        // Calculate eval average and update graph
-                        if (evalCount > 0) {
-                            let averageReward = sumReward / evalCount;
-                            let averageCompletion = sumCompletion / evalCount;
+                current_episode_number = metric["episode"];
+                lastMetricsEpisode = current_episode_number;
 
-                            rewardGraph.data.labels.push(episode);
-                            rewardGraph.data.datasets[0].data.push(averageReward);
-                            rewardGraph.data.datasets[1].data.push(null);
-                            rewardGraph.update();
+                iteration = parseInt(current_episode_number / episodes_per_iteration) + 1;
 
-                            completionGraph.data.labels.push(episode);
-                            completionGraph.data.datasets[0].data.push(averageCompletion);
-                            completionGraph.data.datasets[1].data.push(null);
-                            completionGraph.update();
+                // console.log("1: "+ current_episode_number % 30);
+                // var iteration = current_episode_number % episodes_per_iteration;
+                // iteration += 1;
 
-                            // console.log("PLOTTING: Episode: " + episode + " Reward: " + averageReward);
-                            sumReward = 0;
-                            sumCompletion = 0;
-                            evalCount = 0;
+                if (phase == "training") {
+                    if (previous_phase == "evaluation") {
+                        current_episode_training_count = 0;
+                        current_episode_training_completion_total = 0;
+                        current_episode_training_reward_total = 0;
+
+                        var eval_average_reward = current_episode_eval_reward_total / current_episode_eval_count;
+                        var eval_average_completion = current_episode_eval_completion_total / current_episode_eval_count;
+
+                        console.log("adding eval_completion datapoint for episode=" + current_episode_number + " value=" + eval_average_completion);
+                        rewardChart.series[1].addPoint([current_episode_number - 1, eval_average_completion]);
+
+                        if (eval_average_completion > best_eval_complete) {
+                            best_eval_complete = eval_average_completion;
+                            console.log("Best now " + best_eval_complete + " at episode "+ current_episode_number);
+                            new_best_episode = current_episode_number;
+                            // TODO: plotLine
                         }
+
+
+                    }
+                    current_episode_training_count += 1;
+                    current_episode_training_completion_total += metric["completion_percentage"];
+                    current_episode_training_reward_total += metric["reward_score"];
+                    // console.log("Training iteration " + iteration + ": count=" + current_episode_training_count + " pc_total=" + current_episode_training_completion_total + " reward_total=" + current_episode_training_reward_total);
+
+                    if (metric["episode_status"] == "Lap complete") {
+                        completeChart.series[0].addPoint([current_episode_number, metric["elapsed_time_in_milliseconds"] / 1000]);
+                        completeChart.series[1].addPoint([current_episode_number, metric["reward_score"]]);
                     }
 
-
-                    rewardGraph.data.labels.push(metric['episode']);
-                    rewardGraph.data.datasets[0].data.push(null);
-                    rewardGraph.data.datasets[1].data.push(metric['reward_score']);
-                    rewardGraph.update();
-
-                    completionGraph.data.labels.push(metric['episode']);
-                    completionGraph.data.datasets[0].data.push(null);
-                    completionGraph.data.datasets[1].data.push(metric['completion_percentage']);
-                    completionGraph.update();
-
-                    lastPhase = "training";
-
-
+                    previous_phase = "training";
                 }
-                if (metric['phase'] == "evaluation") {
+                if (phase == "evaluation") {
+                    if (previous_phase == "training") {
+                        current_episode_eval_count = 0;
+                        current_episode_eval_reward_total = 0;
+                        current_episode_eval_completion_total = 0;
 
-                    if (lastPhase == "training") {
-                        // start new eval cycle
-                        sumReward = 0;
-                        sumCompletion = 0;
-                        evalCount = 0;
+                        var training_average_reward = current_episode_training_reward_total / current_episode_training_count;
+                        var training_average_completion = current_episode_training_completion_total / current_episode_training_count;
+
+                        console.log("adding training_completion datapoint for episode=" + current_episode_number + " value=" + training_average_completion);
+                        console.log("adding training_reward datapoint for episode=" + current_episode_number + " value=" + training_average_reward);
+                        rewardChart.series[0].addPoint([current_episode_number, training_average_completion]);
+                        rewardChart.series[2].addPoint([current_episode_number, training_average_reward]);
+
+                    }
+                    current_episode_eval_count += 1;
+                    current_episode_eval_completion_total += metric["completion_percentage"];
+                    current_episode_eval_reward_total += metric["reward_score"];
+                    // console.log("Evaluation iteration " + iteration + ": count=" + current_episode_eval_count + " pc_total=" + current_episode_eval_completion_total);
+
+                    if (metric["episode_status"] == "Lap complete") {
+                        completeChart.series[2].addPoint([current_episode_number, metric["elapsed_time_in_milliseconds"] / 1000]);
+                        completeChart.series[3].addPoint([current_episode_number, metric["reward_score"]]);
                     }
 
-                    sumReward += metric['reward_score'];
-                    sumCompletion += metric['completion_percentage'];
-                    evalCount++;
-
-                    // console.log("EVAL: " + metric['episode'] + " Reward: " + metric['reward_score'] + " Complete: " + metric['completion_percentage']);
-                    lastPhase = "evaluation";
+                    previous_phase = "evaluation";
                 }
-
-                if (metric['episode'] > lastMetricsEpisode) lastMetricsEpisode = metric['episode'];
-                episode = metric['episode'];
-                phase = metric['phase'];
-
             });
+
+            if (new_best_episode > best_episode) {
+                best_episode = new_best_episode;
+                console.log("Plotlines: "+rewardChart.xAxis[0].plotLines());
+                rewardChart.xAxis[0].removePlotLine("best");
+                rewardChart.xAxis[0].addPlotLine({
+                    value: best_episode,
+                    color: 'grey',
+                    dashStyle: "ShortDash",
+                    id: 'best',
+                    zIndex: 1,
+                    label: {text: 'Best model', style: {color: "grey"}}
+                });
+            }
+            footer("");
 
             if (phase) {
                 $('#sessionEpisode').html(episode);
@@ -517,8 +471,219 @@ function updateGraphs() {
 
         })
         .fail(function () {
+            footer("ERROR: Failed to fetch metrics");
             console.log("GET /metrics error");
         });
+}
+
+function initRewardChart() {
+    console.log("initRewardChart()");
+    var rewardOptions = {
+        chart: {
+            type: 'line',
+            height: "75%"
+        },
+        title: {
+            text: 'Training metrics'
+        },
+        xAxis: {
+            title: {
+                text: 'Episode'
+            }
+        },
+        yAxis: [{ // Primary yAxis
+            labels: {
+                style: {
+                    color: "#1d8102"
+                }
+            },
+            title: {
+                text: 'Reward',
+            }
 
 
+        }, { // Secondary yAxis
+            gridLineWidth: 0,
+            title: {
+                text: 'Percentage lap complete',
+            },
+            opposite: true,
+        }],
+        series: [{
+            name: 'Training % lap complete',
+            color: "#0073bb",
+            yAxis: 1,
+            data: []
+        }, {
+            name: 'Evaluation % lap complete',
+            data: [],
+            yAxis: 1,
+            color: "#FF0000"
+        }, {
+            name: 'Average reward',
+            data: [],
+            yAxis: 0,
+            color: "#1d8102"
+        }]
+    };
+
+    var completeOptions = {
+        chart: {
+            height: "75%"
+        },
+        title: {
+            text: 'Complete laps'
+        },
+        xAxis: {
+            title: {
+                text: 'Episode'
+            }
+        },
+        yAxis: [{ // Primary yAxis
+            labels: {
+                style: {
+                    color: "#1d8102"
+                }
+            },
+            title: {
+                text: 'Reward',
+            }
+
+
+        }, { // Secondary yAxis
+            gridLineWidth: 0,
+            title: {
+                text: 'Lap time (seconds)',
+            },
+            opposite: true,
+        }],
+        series: [{
+            name: 'Training lap time',
+            color: "#0073bb",
+            yAxis: 1,
+            data: [],
+            type: "line"
+        }, {
+            name: 'Training reward',
+            data: [],
+            yAxis: 0,
+            color: "#1d8102",
+            type: "line"
+        }, {
+            name: 'Eval lap time',
+            color: "#AA0000",
+            yAxis: 1,
+            data: [],
+            type: "line"
+        }]
+    };
+
+    footer("Fetching metrics since episode "+lastMetricsEpisode);
+    $.ajax({
+        url: "/metrics/" + currentJobID + "?from_episode=" + lastMetricsEpisode,
+        success: function (data) {
+            var training_reward_data = [];
+            var training_completion_data = [];
+            var eval_reward_data = [];
+            var eval_completion_data = [];
+            var complete_eval_times = [];
+            var complete_eval_reward = [];
+            var complete_training_times = [];
+            var complete_training_reward = [];
+
+            footer("Processing metrics...");
+            data.forEach(function (metric) {
+                current_episode_number = metric["episode"];
+                lastMetricsEpisode = current_episode_number;
+                // iteration = metric["trial"];
+                iteration = parseInt(current_episode_number / episodes_per_iteration) + 1;
+                // var iteration = current_episode_number % episodes_per_iteration;
+                // iteration += 1;
+
+                if (metric["phase"] == "training") {
+                    if (previous_phase == "evaluation") {
+                        current_episode_training_count = 0;
+                        current_episode_training_completion_total = 0;
+                        current_episode_training_reward_total = 0;
+
+                        var eval_average_reward = current_episode_eval_reward_total / current_episode_eval_count;
+                        var eval_average_completion = current_episode_eval_completion_total / current_episode_eval_count;
+
+                        // eval_reward_data.push([current_episode_number, eval_average_reward]);
+                        eval_completion_data.push([current_episode_number, eval_average_completion]);
+
+                        if (eval_average_completion > best_eval_complete) {
+                            best_eval_complete = eval_average_completion;
+                            console.log("Best now " + best_eval_complete + " at episode "+ current_episode_number);
+                            best_episode = current_episode_number;
+                        }
+                    }
+                    current_episode_training_count += 1;
+                    current_episode_training_completion_total += metric["completion_percentage"];
+                    current_episode_training_reward_total += metric["reward_score"];
+                    previous_phase = "training";
+                }
+                if (metric["phase"] == "evaluation") {
+                    if (previous_phase == "training") {
+                        current_episode_eval_count = 0;
+                        current_episode_eval_reward_total = 0;
+                        current_episode_eval_completion_total = 0;
+
+                        var training_average_reward = current_episode_training_reward_total / current_episode_training_count;
+                        var training_average_completion = current_episode_training_completion_total / current_episode_training_count;
+
+                        training_reward_data.push([current_episode_number, training_average_reward]);
+                        training_completion_data.push([current_episode_number, training_average_completion]);
+
+                    }
+                    current_episode_eval_count += 1;
+                    current_episode_eval_completion_total += metric["completion_percentage"];
+                    current_episode_eval_reward_total += metric["reward_score"];
+                    previous_phase = "evaluation";
+                }
+
+                if (metric["episode_status"] == "Lap complete") {
+                    if (metric["phase"] == "training") {
+                        complete_training_times.push([current_episode_number, metric["elapsed_time_in_milliseconds"] / 1000]);
+                        complete_training_reward.push([current_episode_number, metric["reward_score"]]);
+                    }
+                    if (metric["phase"] == "evaluation") {
+                        complete_eval_times.push([current_episode_number, metric["elapsed_time_in_milliseconds"] / 1000]);
+                        complete_eval_reward.push([current_episode_number, metric["reward_score"]]);
+                    }
+                }
+            });
+
+            // console.log(JSON.stringify(eval_data));
+            // console.log(JSON.stringify(reward_data));
+            rewardOptions.series[0].data = training_completion_data;
+            rewardOptions.series[1].data = eval_completion_data;
+            rewardOptions.series[2].data = training_reward_data;
+
+            completeOptions.series[0].data = complete_training_times;
+            completeOptions.series[1].data = complete_training_reward;
+            completeOptions.series[2].data = complete_eval_times;
+            // completeOptions.series[3].data = complete_eval_reward;
+
+            rewardChart = new Highcharts.Chart('rewardChart', rewardOptions);
+            completeChart = new Highcharts.Chart('completeChart', completeOptions);
+
+            rewardChart.xAxis[0].addPlotLine({
+                value: best_episode,
+                color: 'grey',
+                dashStyle: "ShortDash",
+                id: 'best',
+                zIndex: 1,
+                label: {text: 'Best model', style: {color: "grey"}}
+            });
+            footer("");
+
+            // setTimeout(setBest, 1000);
+        }
+    });
+}
+
+function footer(msg) {
+    console.log("Setting footer to "+msg);
+    $("#footer").text("Status: "+msg);
 }

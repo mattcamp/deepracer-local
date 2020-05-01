@@ -3,7 +3,9 @@ import docker
 import time
 import threading
 import logging
+import redis
 from datetime import datetime
+
 
 from manager import app, current_job, db
 from manager.models import TrainingJob
@@ -37,7 +39,7 @@ def main_loop():
                     # else:
                     #     app.logger.warning("Timestamp is {}".format(training_job.start_timestamp))
 
-                    if current_job.status['episode_number'] >= current_job.target_episodes:
+                    if current_job.status['episode_number'] > current_job.target_episodes:
                         app.logger.info(
                             "Target episode number reached! {} / {}".format(current_job.status['episode_number'],
                                                                             current_job.target_episodes))
@@ -116,7 +118,7 @@ def write_training_params(filename):
 def setup_bucket():
     try:
         cwd = os.getcwd()
-        bucket_path = "%s/data/minio/bucket/%s" % (cwd, current_job.training_job.name)
+        bucket_path = "{}/data/minio/bucket/{}-{}".format(cwd, current_job.training_job_id ,current_job.training_job.name)
         if os.path.exists(bucket_path):
             app.logger.info("Path exists: %s" % bucket_path)
             old_bucket_path = "%s.old" % bucket_path
@@ -129,15 +131,22 @@ def setup_bucket():
         os.mkdir(bucket_path)
 
         latest_path = "%s/data/minio/bucket/latest" % cwd
-        if os.path.exists(latest_path):
-            os.remove(latest_path)
+        if os.path.islink(latest_path):
+            try:
+                os.system("sudo rm %s" % latest_path)
+            except:
+                pass
 
         os.symlink(bucket_path, latest_path)
 
         write_training_params("%s/training_params.yaml" % bucket_path)
 
         metric_file = "%s/data/minio/bucket/DeepRacer-Metrics/TrainingMetrics.json" % cwd
-        os.system("sudo rm %s" % metric_file)
+        if os.path.exists(metric_file):
+            try:
+                os.system("sudo rm %s" % metric_file)
+            except:
+                pass
 
         os.mkdir("{}/logs".format(bucket_path))
 
@@ -162,6 +171,12 @@ def start_training_job(job):
     current_job.configure_from_queued_job(job)
 
     if setup_bucket():
+        r = redis.Redis()
+        try:
+            r.delete("metrics-{}".format(current_job.training_job_id))
+        except:
+            pass
+
         start_all_containers()
         current_job.training_job.status = "training"
         db.session.commit()

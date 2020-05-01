@@ -1,18 +1,22 @@
 @import url(https://fonts.googleapis.com/css?family=Montserrat:700);
 @import url(https://fonts.googleapis.com/css?family=Lato:300,400,700);
 @import url(https://fonts.googleapis.com/css?family=Open+Sans:400,600);
+
 @font-face {
-  font-family: 'pf_dindisplay_promedium';
-  src: url("fonts/pfdindisplaypro-med-webfont.eot");
-  src: url("fonts/pfdindisplaypro-med-webfont.eot?#iefix") format("embedded-opentype"), url("fonts/pfdindisplaypro-med-webfont.woff2") format("woff2"), url("fonts/pfdindisplaypro-med-webfont.woff") format("woff"), url("../fonts/pfdindisplaypro-med-webfont.ttf") format("truetype"), url("../fonts/pfdindisplaypro-med-webfont.svg#pf_dindisplay_promedium") format("svg");
-  font-weight: normal;
-  font-style: normal;
+    font-family: 'pf_dindisplay_promedium';
+    src: url("fonts/pfdindisplaypro-med-webfont.eot");
+    src: url("fonts/pfdindisplaypro-med-webfont.eot?#iefix") format("embedded-opentype"), url("fonts/pfdindisplaypro-med-webfont.woff2") format("woff2"), url("fonts/pfdindisplaypro-med-webfont.woff") format("woff"), url("../fonts/pfdindisplaypro-med-webfont.ttf") format("truetype"), url("../fonts/pfdindisplaypro-med-webfont.svg#pf_dindisplay_promedium") format("svg");
+    font-weight: normal;
+    font-style: normal;
 }
 
 body {
     background-color: black;
     color: white;
     font-family: "pf_dindisplay_promedium", sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 i {
@@ -28,6 +32,15 @@ i {
     padding: 5px;
 }
 
+.headerMid {
+    /*border: 1px solid red;*/
+    text-align: center;
+    /*background-color: black;*/
+    /*height: 100%;*/
+    /*margin: 5px;*/
+    padding: 5px;
+}
+
 .headerRight {
     text-align: right;
 }
@@ -37,12 +50,22 @@ i {
 }
 
 .footerRow {
-    position: absolute;
-    bottom: 0px;
-    left: 0px;
+    /*position: absolute;*/
+    background-color: #2a0040;
+    /*bottom: 0px;*/
+    /*left: 0px;*/
     border: 0px solid red;
     width: 100%;
-    height: 20px;
+    /*height: 20px;*/
+    flex: 0 0 30px; /*or just height:50px;*/
+    max-height: 30px;
+    margin-top: auto;
+}
+
+.btn-static {
+    /*background-color: white;*/
+    /*border: 1px solid lightgrey;*/
+    cursor: default;
 }
 
 #jobQueueDiv {

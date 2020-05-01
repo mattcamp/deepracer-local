@@ -23,8 +23,8 @@ class NewJobForm(FlaskForm):
     loss_type = SelectField('Loss Type', default="mean squared error",
                             choices=[('mean squared error', 'mean squared error'),
                                      ('huber', 'huber')])
-    number_of_obstacles = IntegerField('Number of obstacles', default=3)
-    randomize_obstacle_locations = BooleanField('Random obstacle locations')
-    change_start_position = BooleanField('Change start position')
-    alternate_driving_direction = BooleanField('Alternate driving direction')
+    number_of_obstacles = IntegerField('Number of obstacles', default=0)
+    randomize_obstacle_locations = BooleanField('Random obstacle locations', false_values=(False, 'False', 'false', ''))
+    change_start_position = BooleanField('Change start position', default=True, false_values=(False, 'False', 'false', ''))
+    alternate_driving_direction = BooleanField('Alternate driving direction', default=False, false_values=(False, 'False', 'false', ''))
     pretrained_model = SelectField('Pre-trained model')
