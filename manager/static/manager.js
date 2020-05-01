@@ -10,10 +10,10 @@ var rewardGraph;
 var completionGraph;
 var lastMetricsEpisode = 0;
 // var lastPhase = null;
-var jobsTable;
+var modelsTable;
 var jobToDelete = null;
-var jobsData;
-var currentJobID = null;
+var modelsData;
+var currentModelID = null;
 
 var rewardChart;
 var completeChart;
@@ -52,8 +52,8 @@ var previous_phase = null;
 
 
 $(document).ready(function () {
-    $('#saveJobButton').click(function () {
-        saveJob();
+    $('#saveModelButton').click(function () {
+        saveModel();
     });
 
     $('#startButton').click(function () {
@@ -64,24 +64,19 @@ $(document).ready(function () {
         stopTraining()
     });
 
-    $('#addJobButton').click(function () {
-        // jobsData.forEach(function (row) {
-        //     if(row.status=="queued") {
-        //
-        //     }
-        //     console.log(row.status);
-        // });
+    $('#addModelButton').click(function () {
+
         $.get("/pretrained_dirs")
             .done(function (data) {
                 $("#pretrained_model").replaceOptions(data);
             });
         $("#id").val(null);
         $("#name").val("");
-        $("#newJobModal").modal();
+        $("#newModelModal").modal();
     });
 
     updateStatus();
-    initJobTable();
+    initModelsTable();
     setTimeout(initRewardChart, 2000); // Delay 2s to let systemState update
     setInterval(updateStatus, 2000);
     setInterval(updateGraphs, 5000);
@@ -101,12 +96,16 @@ function updateStatus() {
     var jqxhr = $.get("/current_job")
         .done(function (data) {
             // console.log("GET /current_job success");
+            // console.log(data);
 
             minioStatus = data['minio_status'];
             coachStatus = data['coach_status'];
             sagemakerStatus = data['sagemaker_status'];
             robomakerStatus = data['robomaker_status'];
-            currentJobID = data['job_id'];
+            currentModelID = data['model_id'];
+            episodes_per_iteration = data["episodes_per_iteration"];
+
+            $('#sessionEpisode').html(data['episode_number']);
             $('#sessionIteration').html(data['iteration_number']);
             $('#sessionBestCheckpoint').html(data['best_checkpoint']);
 
@@ -149,13 +148,12 @@ function updateStatus() {
         .fail(function () {
             console.log("GET /current_job error");
         });
-    updateJobTable();
+    updateModelsTable();
 }
 
-function saveJob() {
-    console.log("in addNewJob()");
+function saveModel() {
     data = {};
-    $("form#newJobForm :input").each(function () {
+    $("form#newModelForm :input").each(function () {
         var input = $(this);
         data[input.attr('name')] = input.val();
     });
@@ -164,14 +162,14 @@ function saveJob() {
     data["alternate_driving_direction"] = $("#alternate_driving_direction").is(':checked');
     data["randomize_obstacle_locations"] = $("#randomize_obstacle_locations").is(':checked');
 
-    var jqxhr = $.post("/jobs", data)
+    var jqxhr = $.post("/models", data)
         .done(function () {
-            console.log("POST /jobs success");
-            $("#newJobModal").modal('hide');
-            updateJobTable();
+            console.log("POST /models success");
+            $("#newModelModal").modal('hide');
+            updateModelsTable();
         })
         .fail(function (error) {
-            console.log("POST /jobs error");
+            console.log("POST /models error");
             console.log(error['responseText']);
             $("#formError").html(error['responseText']);
         })
@@ -185,93 +183,89 @@ var delIcon = function (cell, formatterParams, onRendered) { //plain text value
     return "<i class='fa fa-trash-alt'></i>";
 };
 
-function deleteJob(job_id, confirmed = false) {
+function deleteModel(model_id, confirmed = false) {
     if (confirmed) {
-        console.log("Deleting job " + job_id);
-        $('#deleteJobModal').modal('hide');
+        console.log("Deleting model " + model_id);
+        $('#deleteModelModal').modal('hide');
         $.ajax({
-            url: '/job/' + job_id,
+            url: '/model/' + model_id,
             type: 'DELETE',
             success: function (result) {
                 console.log(result);
-                updateJobTable();
+                updateModelsTable();
             }
         });
 
     } else {
 
-        $('#deleteJobButton').click(function () {
-            deleteJob(job_id, confirmed = true);
+        $('#deleteModelButton').click(function () {
+            deleteModel(model_id, confirmed = true);
         });
 
-        $('#deleteJobModal').modal();
+        $('#deleteModelModal').modal();
     }
 }
 
 
-function initJobTable() {
+function initModelsTable() {
     var columns = [
-        {title: "Job Name", field: "name", sorter: "string"},
-        {title: "Target Episodes", field: "episodes", sorter: "number", align: "center"},
-        {title: "Track", field: "track", sorter: "string", align: "center"},
-        {title: "Status", field: "status", formatter: "string", align: "center"},
-        {title: "Episodes trained", field: "episodes_trained", formatter: "string", align: "center"},
+        {title: "Model Name", field: "name", sorter: "string"},
+        {title: "Description", field: "description", sorter: "string"},
+        {title: "Status", field: "status", formatter: "plaintext", align: "center"},
+        {title: "Target Episodes", field: "episodes_target", sorter: "number", align: "center"},
+        {title: "Episodes trained", field: "episodes_trained", formatter: "plaintext", align: "center"},
         {title: "Laps complete", field: "laps_complete", sorter: "number", align: "center"},
         {title: "Fastest lap", field: "best_lap_time", sorter: "number", align: "center"},
         {
             formatter: editIcon, width: 40, align: "center", cellClick: function (e, cell) {
-                editJob(cell.getRow().getData().id)
+                editModel(cell.getRow().getData().id)
             }
         },
         {
             formatter: delIcon, width: 40, align: "center", cellClick: function (e, cell) {
-                deleteJob(cell.getRow().getData().id)
+                deleteModel(cell.getRow().getData().id)
             }
         }
     ];
-    let url = "/jobs";
-    jobsTable = new Tabulator("#jobsTable", {
+    let url = "/models";
+    modelsTable = new Tabulator("#modelsTable", {
         columns: columns,
         layout: "fitColumns",
         height: "150"
         // ajaxURL: url
     });
-    updateJobTable();
+    updateModelsTable();
 }
 
 
-function updateJobTable() {
-    $.get("/jobs")
+function updateModelsTable() {
+    $.get("/models")
         .done(function (data) {
-            // console.log("GET /jobs success");
-            if (jobsTable) {
-                jobsTable.replaceData(data);
-                jobsData = data;
+            if (modelsTable) {
+                modelsTable.replaceData(data);
+                modelsData = data;
             } else {
                 console.log("No table");
             }
 
         })
         .fail(function () {
-            console.log("GET /jobs error");
+            console.log("GET /models error");
         });
 }
 
 
-function editJob(job_id) {
-    // job_id = item.currentTarget.dataset["id"];
-    console.log(job_id);
-    $.get("/job/" + job_id)
+function editModel(model_id) {
+    $.get("/model/" + model_id)
         .done(function (data) {
-            console.log(data);
             for (var key in data) {
                 $("#" + key).val(data[key]);
             }
-            $("#newJobModal").modal();
+            $("#newModelModal").modal();
 
         })
         .fail(function () {
-            console.log("GET /job error");
+            console.log("GET /model error");
         });
 }
 
@@ -300,7 +294,7 @@ function startTraining() {
     completeChart.series[0].data = [];
     completeChart.series[1].data = [];
     completeChart.series[2].data = [];
-    completeChart.series[3].data = [];
+
 
 
     setTimeout(startVideo, 5000);
@@ -358,13 +352,13 @@ function updateGraphs() {
         // console.log("Not running yet so not updating graphs");
         return 0;
     }
-    if (currentJobID == null) {
+    if (currentModelID == null) {
         // console.log("No training job ID yet")
         return 0;
     }
     footer("Fetching metrics since episode "+lastMetricsEpisode);
     // console.log("Starting data update from episode " + lastMetricsEpisode);
-    $.get("/metrics/" + currentJobID + "?from_episode=" + lastMetricsEpisode)
+    $.get("/metrics/" + currentModelID + "?from_episode=" + lastMetricsEpisode)
         .done(function (data) {
             let episode = 0;
             let phase = null;
@@ -399,8 +393,8 @@ function updateGraphs() {
 
                         if (eval_average_completion > best_eval_complete) {
                             best_eval_complete = eval_average_completion;
-                            console.log("Best now " + best_eval_complete + " at episode "+ current_episode_number);
-                            new_best_episode = current_episode_number;
+                            console.log("Best now " + best_eval_complete + " at episode "+ current_episode_number-1);
+                            new_best_episode = current_episode_number-1;
                             // TODO: plotLine
                         }
 
@@ -449,7 +443,8 @@ function updateGraphs() {
 
             if (new_best_episode > best_episode) {
                 best_episode = new_best_episode;
-                console.log("Plotlines: "+rewardChart.xAxis[0].plotLines());
+                console.log("Plotlines: "+rewardChart.xAxis[0].plotLines);
+                console.log("Adding new best plotline at episode "+best_episode);
                 rewardChart.xAxis[0].removePlotLine("best");
                 rewardChart.xAxis[0].addPlotLine({
                     value: best_episode,
@@ -463,7 +458,7 @@ function updateGraphs() {
             footer("");
 
             if (phase) {
-                $('#sessionEpisode').html(episode);
+                // $('#sessionEpisode').html(episode);
                 $('#sessionPhase').html(phase);
 
             }
@@ -579,8 +574,10 @@ function initRewardChart() {
     };
 
     footer("Fetching metrics since episode "+lastMetricsEpisode);
+    let url = "/metrics/" + currentModelID + "?from_episode=" + lastMetricsEpisode;
+    console.log(url);
     $.ajax({
-        url: "/metrics/" + currentJobID + "?from_episode=" + lastMetricsEpisode,
+        url: url,
         success: function (data) {
             var training_reward_data = [];
             var training_completion_data = [];
@@ -590,7 +587,7 @@ function initRewardChart() {
             var complete_eval_reward = [];
             var complete_training_times = [];
             var complete_training_reward = [];
-
+            console.log("got "+data.length+" metrics");
             footer("Processing metrics...");
             data.forEach(function (metric) {
                 current_episode_number = metric["episode"];
@@ -610,12 +607,12 @@ function initRewardChart() {
                         var eval_average_completion = current_episode_eval_completion_total / current_episode_eval_count;
 
                         // eval_reward_data.push([current_episode_number, eval_average_reward]);
-                        eval_completion_data.push([current_episode_number, eval_average_completion]);
+                        eval_completion_data.push([current_episode_number-1, eval_average_completion]);
 
                         if (eval_average_completion > best_eval_complete) {
                             best_eval_complete = eval_average_completion;
-                            console.log("Best now " + best_eval_complete + " at episode "+ current_episode_number);
-                            best_episode = current_episode_number;
+                            console.log("Best now " + best_eval_complete + " at episode "+ (current_episode_number-1));
+                            best_episode = current_episode_number-1;
                         }
                     }
                     current_episode_training_count += 1;
@@ -669,7 +666,7 @@ function initRewardChart() {
             completeChart = new Highcharts.Chart('completeChart', completeOptions);
 
             rewardChart.xAxis[0].addPlotLine({
-                value: best_episode,
+                value: best_episode-1,
                 color: 'grey',
                 dashStyle: "ShortDash",
                 id: 'best',
@@ -684,6 +681,5 @@ function initRewardChart() {
 }
 
 function footer(msg) {
-    console.log("Setting footer to "+msg);
     $("#footer").text("Status: "+msg);
 }

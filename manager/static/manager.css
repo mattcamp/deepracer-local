@@ -68,7 +68,7 @@ i {
     cursor: default;
 }
 
-#jobQueueDiv {
+#ModelQueueDiv {
     margin: 0px;
     border: 0px solid grey;
     min-height: 20%;
@@ -76,12 +76,12 @@ i {
     /*max-height: 25%;*/
 }
 
-.jobQueueHeaderLeft {
+.ModelQueueHeaderLeft {
     float: left;
     width: 90%;
 }
 
-.jobQueueHeaderRight {
+.ModelQueueHeaderRight {
     justify-content: right;
     text-align: right;
     margin-top: 5px;
@@ -126,4 +126,8 @@ i {
 
 .modal-dialog {
     max-width: 90%;
+}
+
+.form-group {
+    margin-bottom: 0;
 }

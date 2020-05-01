@@ -8,7 +8,7 @@ from datetime import datetime
 
 
 from manager import app, current_job, db
-from manager.models import TrainingJob
+from manager.models import LocalModel
 from .log_watchers import tail_robomaker_logs, tail_sagemaker_logs, tail_metrics, start_sagemaker_log_tail
 
 client = docker.from_env()
@@ -17,33 +17,33 @@ client = docker.from_env()
 def main_loop():
     while True:
         app.logger.debug("in main loop")
-        if current_job.training_job is not None:
+        if current_job.local_model is not None:
             try:
-                training_job = TrainingJob.query.get(current_job.training_job_id)
-                db.session.refresh(training_job)
+                local_model = LocalModel.query.get(current_job.local_model_id)
+                db.session.refresh(local_model)
                 app.logger.debug(
-                    "Status: {} {}: {} / {}".format(training_job.name,
-                                                    training_job.status,
+                    "Status: {} {}: {} / {}".format(local_model.name,
+                                                    local_model.status,
                                                     current_job.status['episode_number'],
                                                     current_job.target_episodes))
 
-                if training_job.status == "training":
-                    if training_job.start_timestamp:
-                        td = datetime.now() - training_job.start_timestamp
+                if local_model.status == "training":
+                    if local_model.start_timestamp:
+                        td = datetime.now() - local_model.start_timestamp
                         minutes = divmod(td.seconds, 60)[0]
-                        app.logger.info("Minutes trained: {} / {}".format(minutes, training_job.minutes_target))
+                        app.logger.info("Minutes trained: {} / {}".format(minutes, local_model.minutes_target))
 
-                        if minutes != training_job.minutes_trained:
-                            training_job.minutes_trained = minutes
+                        if minutes != local_model.minutes_trained:
+                            local_model.minutes_trained = minutes
                             db.session.commit()
                     # else:
-                    #     app.logger.warning("Timestamp is {}".format(training_job.start_timestamp))
+                    #     app.logger.warning("Timestamp is {}".format(local_model.start_timestamp))
 
                     if current_job.status['episode_number'] > current_job.target_episodes:
                         app.logger.info(
                             "Target episode number reached! {} / {}".format(current_job.status['episode_number'],
                                                                             current_job.target_episodes))
-                        training_job.status = "complete"
+                        local_model.status = "complete"
                         db.session.commit()
 
                         stop_all_containers()
@@ -118,7 +118,7 @@ def write_training_params(filename):
 def setup_bucket():
     try:
         cwd = os.getcwd()
-        bucket_path = "{}/data/minio/bucket/{}-{}".format(cwd, current_job.training_job_id ,current_job.training_job.name)
+        bucket_path = "{}/data/minio/bucket/{}-{}".format(cwd, current_job.local_model_id ,current_job.local_model.name)
         if os.path.exists(bucket_path):
             app.logger.info("Path exists: %s" % bucket_path)
             old_bucket_path = "%s.old" % bucket_path
@@ -158,10 +158,10 @@ def setup_bucket():
 
 
 def start_next_job():
-    next_job = TrainingJob.query.filter_by(status="queued").first()
+    next_job = LocalModel.query.filter_by(status="queued").first()
     if next_job:
         app.logger.info("Starting next queued job: {}".format(next_job.name))
-        start_training_job(next_job)
+        start_local_model(next_job)
     else:
         app.logger.info("No queued jobs found")
 
@@ -173,12 +173,12 @@ def start_training_job(job):
     if setup_bucket():
         r = redis.Redis()
         try:
-            r.delete("metrics-{}".format(current_job.training_job_id))
+            r.delete("metrics-{}".format(current_job.local_model_id))
         except:
             pass
 
         start_all_containers()
-        current_job.training_job.status = "training"
+        current_job.local_model.status = "training"
         db.session.commit()
     else:
         # Reset current_job
@@ -261,11 +261,11 @@ def start_all_containers():
 def stop_all_containers(minio=False):
     current_job.update_status()
 
-    if current_job.training_job:
-        current_job.training_job.status = "stopped"
+    if current_job.local_model:
+        current_job.local_model.status = "stopped"
         db.session.commit()
     else:
-        app.logger.warning("No current_job.training_job")
+        app.logger.warning("No current_job.local_model")
 
     if current_job.sagemaker_container:
         try:
@@ -306,11 +306,11 @@ def check_if_already_running():
 
     current_job.update_status()
 
-    if current_job.training_job is None:
+    if current_job.local_model is None:
         if current_job.robomaker_container and current_job.status['robomaker_status'] == "running":
             app.logger.info("Found running robomaker container")
         try:
-            running_jobs = TrainingJob.query.filter_by(status="training").all()
+            running_jobs = LocalModel.query.filter_by(status="training").all()
             print("Found {} jobs in training state".format(len(running_jobs)))
         except Exception as e:
             return 0
@@ -365,7 +365,7 @@ def check_if_already_running():
         app.logger.info("  Robomaker: {}".format(current_job.status['robomaker_status']))
         app.logger.info("  Coach: {}".format(current_job.status['coach_status']))
         app.logger.info("  Sagemaker: {}".format(current_job.status['sagemaker_status']))
-        jobs = TrainingJob.query.filter_by(status="training").all()
+        jobs = LocalModel.query.filter_by(status="training").all()
         for job in jobs:
             app.logger.info("Setting previously training job {} as stopped".format(job.name))
             job.status = "stopped"

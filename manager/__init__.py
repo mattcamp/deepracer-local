@@ -8,6 +8,7 @@ import click
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_bootstrap import Bootstrap
 from manager.currentjob import CurrentJob
 
 
@@ -49,15 +50,21 @@ app.config['SECRET_KEY'] = os.urandom(32)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'manager.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+
+
 db = SQLAlchemy(app)
+
+from manager import models
+
 migrate = Migrate(app, db)
 db.init_app(app)
+Bootstrap(app)
 
 
 if click.get_current_context().command.name == "run":
     current_job = CurrentJob()
 
-    from manager import routes, models
+    from manager import routes
     from manager.utils import check_if_already_running, start_next_job, stop_all_containers, main_loop, init_redis
 
     # session = db.session()

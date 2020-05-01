@@ -2,7 +2,7 @@ from manager import app, db, current_job
 from flask import render_template, request, redirect, jsonify
 from random import random
 from manager.forms import NewJobForm
-from manager.models import TrainingJob
+from manager.models import LocalModel
 from manager.utils import start_training_job, stop_all_containers
 from os import getcwd, listdir
 import json
@@ -98,8 +98,8 @@ def index():
     return render_template('index.html', form=form)
 
 
-@app.route('/jobs', methods=["GET", "POST"])
-def jobs():
+@app.route('/models', methods=["GET", "POST"])
+def models():
     form = NewJobForm()
     form.track.choices = track_choices
     form.pretrained_model.choices = modeldirs
@@ -128,75 +128,75 @@ def jobs():
 
         if data['id']:
             app.logger.info("Editing job {}".format(data['id']))
-            this_job = TrainingJob.query.get(data['id'])
+            this_model = LocalModel.query.get(data['id'])
         else:
-            this_job = TrainingJob()
-            db.session.add(this_job)
+            this_model = LocalModel()
+            db.session.add(this_model)
 
-        this_job.name = data['name']
-        this_job.race_type = data['race_type']
-        this_job.track = data['track']
-        this_job.reward_function_filename = data['reward_function_filename']
-        this_job.model_metadata_filename = data['model_metadata_filename']
-        this_job.episodes = int(data['episodes'])
-        this_job.episodes_between_training = int(data['episodes_between_training'])
-        this_job.batch_size = int(data['batch_size'])
-        this_job.epochs = int(data['epochs'])
-        this_job.learning_rate = float(data['learning_rate'])
-        this_job.entropy = float(data['entropy'])
-        this_job.discount_factor = float(data['discount_factor'])
-        this_job.loss_type = data['loss_type']
-        this_job.number_of_obstacles = data['number_of_obstacles']
-        this_job.randomize_obstacle_locations = str2bool(data['randomize_obstacle_locations'])
+        this_model.name = data['name']
+        this_model.description = data['description']
+        this_model.race_type = data['race_type']
+        this_model.track = data['track']
+        this_model.reward_function_filename = data['reward_function_filename']
+        this_model.model_metadata_filename = data['model_metadata_filename']
+        this_model.episodes_target = int(data['episodes'])
+        this_model.episodes_between_training = int(data['episodes_between_training'])
+        this_model.batch_size = int(data['batch_size'])
+        this_model.epochs = int(data['epochs'])
+        this_model.learning_rate = float(data['learning_rate'])
+        this_model.entropy = float(data['entropy'])
+        this_model.discount_factor = float(data['discount_factor'])
+        this_model.loss_type = data['loss_type']
+        this_model.number_of_obstacles = data['number_of_obstacles']
+        this_model.randomize_obstacle_locations = str2bool(data['randomize_obstacle_locations'])
 
         app.logger.debug(
             "change_start: {}={}".format(data['change_start_position'], str2bool(data['change_start_position'])))
         app.logger.debug("alternate_direction: {}={}".format(data['alternate_driving_direction'],
                                                              str2bool(data['alternate_driving_direction'])))
 
-        this_job.change_start_position = str2bool(data['change_start_position'])
-        this_job.alternate_direction = str2bool(data['alternate_driving_direction'])
-        this_job.pretrained_model = data['pretrained_model']
+        this_model.change_start_position = str2bool(data['change_start_position'])
+        this_model.alternate_direction = str2bool(data['alternate_driving_direction'])
+        this_model.pretrained_model = data['pretrained_model']
 
         db.session.commit()
 
-        if this_job:
-            jobs = TrainingJob.query.all()
+        if this_model:
+            # jobs = LocalModel.query.all()
             return ("OK", 200)
         else:
             return ("Failed to save new job", 500)
 
     else:
-        all_jobs = TrainingJob.query.all()
-        jobs_array = []
-        for this_job in all_jobs:
-            jobs_array.append(this_job.as_dict())
-        # app.logger.info(json.dumps(jobs_array))
-        return jsonify(jobs_array)
+        all_models = LocalModel.query.all()
+        models_array = []
+        for this_model in all_models:
+            models_array.append(this_model.as_dict())
+        return jsonify(models_array)
 
 
-@app.route('/job/<job_id>', methods=["GET", "POST", "DELETE"])
-def job(job_id):
-    app.logger.info("in job({})".format(job_id))
-    # job_id = request.args.get('job_id', None)
+@app.route('/model/<model_id>', methods=["GET", "POST", "DELETE"])
+def model(model_id):
+    app.logger.info("in model({})".format(model_id))
 
-    if not job_id:
+    if not model_id:
         return "Job not found", 404
 
     if request.method == "DELETE":
-        app.logger.info("Got delete for job {}".format(job_id))
-        job_to_delete = TrainingJob.query.filter_by(id=job_id).first()
-        if job_to_delete:
-            app.logger.info("Found job: {}".format(job_to_delete))
-            if current_job.training_job == job_to_delete:
-                current_job.training_job = None
-            db.session.delete(job_to_delete)
+        app.logger.info("Got delete for model {}".format(model_id))
+        model_to_delete = LocalModel.query.filter_by(id=model_id).first()
+        if model_to_delete:
+            app.logger.info("Found model: {}".format(model_to_delete))
+            if current_job.local_model == model_to_delete:
+                current_job.local_model = None
+            db.session.delete(model_to_delete)
             db.session.commit()
+            # TODO: Delete metrics
         return "OK", 200
 
     if request.method == "GET":
-        this_job = TrainingJob.query.get(job_id)
-        return jsonify(this_job.as_dict())
+        this_model = LocalModel.query.get(model_id)
+        return jsonify(this_model.as_dict())
 
 
 @app.route('/current_job', methods=["GET", "POST"])
@@ -209,12 +209,12 @@ def current_training_job():
             current_job.update_status()
             if not current_job.status['sagemaker_status'] and not current_job.status['robomaker_status']:
                 app.logger.info("ok to start")
-                first_job = TrainingJob.query.filter_by(status='queued').first()
-                if first_job:
-                    start_training_job(first_job)
+                first_model = LocalModel.query.filter_by(status='queued').first()
+                if first_model:
+                    start_training_job(first_model)
                 else:
-                    app.logger.warning("Start button clicked but no jobs in queued state")
-                    return "No queued jobs", 400
+                    app.logger.warning("Start button clicked but no models in queued state")
+                    return "No queued models", 400
             else:
                 app.logger.info("Not ok to start")
                 return "not ready", 412
@@ -223,9 +223,9 @@ def current_training_job():
             app.logger.info("Stop training requested")
             current_job.desired_state = "stopped"
             try:
-                training_job = TrainingJob.query.get(current_job.training_job_id)
-                db.session.refresh(training_job)
-                training_job.status = "stopped"
+                local_model = LocalModel.query.get(current_job.local_model_id)
+                db.session.refresh(local_model)
+                local_model.status = "stopped"
                 db.session.commit()
             except Exception as e:
                 app.logger.error("Error while stopping: {}".format(e))
@@ -254,13 +254,13 @@ def current_training_job():
 #     return jsonify(metrics_to_return)
 
 
-@app.route('/metrics/<job_id>', methods=["GET"])
-def get_metrics(job_id):
+@app.route('/metrics/<model_id>', methods=["GET"])
+def get_metrics(model_id):
     from_episode = request.args.get('from_episode', -1)
     metrics_to_return = []
     r = redis.Redis()
 
-    key = "metrics-{}".format(job_id)
+    key = "metrics-{}".format(model_id)
     for i in range(0, r.llen(key)):
         metric = json.loads(r.lindex(key, i).decode("utf-8"))
 
@@ -275,25 +275,26 @@ def get_metrics(job_id):
     return jsonify(metrics_to_return)
 
 
-@app.route('/metrics_averaged/<job_id>', methods=["GET"])
-def get_metrics_averaged(job_id):
-    from_episode = request.args.get('from_episode', -1)
-    metrics_to_return = []
-    r = redis.Redis()
-
-    key = "metrics-{}".format(job_id)
-    for i in range(0, r.llen(key)):
-        metric = json.loads(r.lindex(key, i).decode("utf-8"))
-
-        if metric['phase'] == "training" and metric['episode'] > int(from_episode):
-            metrics_to_return.append(metric)
-            # print(metric)
-
-        if metric['phase'] == "evaluation" and metric['episode'] >= int(from_episode):
-            metrics_to_return.append(metric)
-            # print(metric)
-
-    return jsonify(metrics_to_return)
+# TODO: Calculate and store averaged metrics server-side?
+# @app.route('/metrics_averaged/<model_id>', methods=["GET"])
+# def get_metrics_averaged(model_id):
+#     from_episode = request.args.get('from_episode', -1)
+#     metrics_to_return = []
+#     r = redis.Redis()
+#
+#     key = "metrics-{}".format(model_id)
+#     for i in range(0, r.llen(key)):
+#         metric = json.loads(r.lindex(key, i).decode("utf-8"))
+#
+#         if metric['phase'] == "training" and metric['episode'] > int(from_episode):
+#             metrics_to_return.append(metric)
+#             # print(metric)
+#
+#         if metric['phase'] == "evaluation" and metric['episode'] >= int(from_episode):
+#             metrics_to_return.append(metric)
+#             # print(metric)
+#
+#     return jsonify(metrics_to_return)
 
 
 @app.route('/pretrained_dirs', methods=["GET"])
@@ -308,8 +309,8 @@ def pretrained_dirs():
             if f not in exclude_dirs:
                 modeldirs.append({"value": f, "text": f})
 
-    queued_jobs = TrainingJob.query.filter_by(status="queued").all()
-    for qj in queued_jobs:
-        modeldirs.append({"value": qj.name, "text": qj.name})
+    queued_models = LocalModel.query.filter_by(status="queued").all()
+    for qm in queued_models:
+        modeldirs.append({"value": qm.name, "text": qm.name})
 
     return jsonify(modeldirs)

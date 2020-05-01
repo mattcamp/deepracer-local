@@ -32,7 +32,7 @@ class CurrentJob():
             'SAGEMAKER_SHARED_S3_BUCKET': "bucket",
             'SAGEMAKER_SHARED_S3_PREFIX': "current",
             'WORLD_NAME': None,
-            "TRAINING_JOB_ID": None,
+            "LOCAL_MODEL_ID": None,
             'ENABLE_KINESIS': "false",
             'ENABLE_GUI': "false"
         }
@@ -67,8 +67,8 @@ class CurrentJob():
         self.metrics = []
         self.entropy_metrics = []
 
-        self.training_job = None
-        self.training_job_id = None
+        self.local_model = None
+        self.local_model_id = None
         self.minio_container = None
         self.coach_container = None
         self.robomaker_container = None
@@ -81,13 +81,14 @@ class CurrentJob():
         self.target_episodes = 0
 
         self.status = {
-            'job_id': None,
+            'status_id': None,
             'coach_status': None,
             'robomaker_status': None,
             'sagemaker_status': None,
             'episode_number': 0,
             'iteration_number': 0,
-            'best_checkpoint': None
+            'best_checkpoint': None,
+            'episodes_per_iteration': 0
         }
         self.update_status()
 
@@ -130,49 +131,50 @@ class CurrentJob():
 
 
 
-    def configure_from_queued_job(self, job):
-        self.training_job = job
-        self.training_job_id = job.id
-        self.target_episodes = job.episodes
-        self.status["job_id"] = job.id
+    def configure_from_queued_job(self, model):
+        self.local_model = model
+        self.local_model_id = model.id
+        self.target_episodes = model.episodes_target
+        self.status["model_id"] = model.id
+        self.status["episodes_per_iteration"] = model.episodes_between_training
 
-        print("Loading job: {}-{}".format(job.id, job.name))
+        print("Loading model: {}-{}".format(model.id, model.name))
 
-        self.docker_env['WORLD_NAME'] = job.track
-        self.docker_env['MODEL_S3_PREFIX'] = "{}-{}".format(job.id, job.name)
-        self.docker_env['SAGEMAKER_SHARED_S3_PREFIX'] = "{}-{}".format(job.id, job.name)
-        self.docker_env['REWARD_FILE_S3_KEY'] = "custom_files/%s" % job.reward_function_filename
-        self.docker_env['MODEL_METADATA_FILE_S3_KEY'] = "custom_files/%s" % job.model_metadata_filename
-        self.docker_env['ALTERNATE_DRIVING_DIRECTION'] = job.alternate_direction
-        self.docker_env['CHANGE_START_POSITION'] = job.change_start_position
-        self.docker_env['HP_BATCH_SIZE'] = job.batch_size
-        self.docker_env['HP_ENTROPY'] = job.entropy
-        self.docker_env['HP_DISCOUNT'] = job.discount_factor
-        self.docker_env['HP_LOSS_TYPE'] = job.loss_type
-        self.docker_env['HP_LEARNING_RATE'] = job.learning_rate
-        self.docker_env['HP_EPISODES_BETWEEN_TRAINING'] = job.episodes_between_training
-        self.docker_env['HP_EPOCHS'] = job.epochs
-        self.docker_env['TRAINING_JOB_ID'] = job.id
+        self.docker_env['WORLD_NAME'] = model.track
+        self.docker_env['MODEL_S3_PREFIX'] = "{}-{}".format(model.id, model.name)
+        self.docker_env['SAGEMAKER_SHARED_S3_PREFIX'] = "{}-{}".format(model.id, model.name)
+        self.docker_env['REWARD_FILE_S3_KEY'] = "custom_files/%s" % model.reward_function_filename
+        self.docker_env['MODEL_METADATA_FILE_S3_KEY'] = "custom_files/%s" % model.model_metadata_filename
+        self.docker_env['ALTERNATE_DRIVING_DIRECTION'] = model.alternate_direction
+        self.docker_env['CHANGE_START_POSITION'] = model.change_start_position
+        self.docker_env['HP_BATCH_SIZE'] = model.batch_size
+        self.docker_env['HP_ENTROPY'] = model.entropy
+        self.docker_env['HP_DISCOUNT'] = model.discount_factor
+        self.docker_env['HP_LOSS_TYPE'] = model.loss_type
+        self.docker_env['HP_LEARNING_RATE'] = model.learning_rate
+        self.docker_env['HP_EPISODES_BETWEEN_TRAINING'] = model.episodes_between_training
+        self.docker_env['HP_EPOCHS'] = model.epochs
+        self.docker_env['LOCAL_MODEL_ID'] = model.id
 
-        if job.pretrained_model != "None":
+        if model.pretrained_model != "None":
             print("Adding pretrained model")
-            self.docker_env['PRETRAINED_MODEL'] = job.pretrained_model
+            self.docker_env['PRETRAINED_MODEL'] = model.pretrained_model
         else:
             print("No pretrained model")
 
         self.docker_env['ENABLE_KINESIS'] = "False"
 
-        self.training_params['WORLD_NAME'] = job.track
-        self.training_params['NUMBER_OF_EPISODES'] = job.episodes
-        self.training_params['SAGEMAKER_SHARED_S3_PREFIX'] = "{}-{}".format(job.id, job.name)
-        self.training_params['CHANGE_START_POSITION'] = job.change_start_position
-        self.training_params['ALTERNATE_DRIVING_DIRECTION'] = job.alternate_direction
-        self.training_params['REWARD_FILE_S3_KEY'] = "custom_files/%s" % job.reward_function_filename
-        self.training_params['MODEL_METADATA_FILE_S3_KEY'] = "custom_files/%s" % job.model_metadata_filename
-        self.training_params['RACE_TYPE'] = job.race_type
-        self.training_params['NUMBER_OF_OBSTACLES'] = job.number_of_obstacles
-        self.training_params['OBSTACLE_TYPE'] = job.obstacle_type
-        self.training_params['RANDOMIZE_OBSTACLE_LOCATIONS'] = job.randomize_obstacle_locations
+        self.training_params['WORLD_NAME'] = model.track
+        self.training_params['NUMBER_OF_EPISODES'] = model.episodes_target
+        self.training_params['SAGEMAKER_SHARED_S3_PREFIX'] = "{}-{}".format(model.id, model.name)
+        self.training_params['CHANGE_START_POSITION'] = model.change_start_position
+        self.training_params['ALTERNATE_DRIVING_DIRECTION'] = model.alternate_direction
+        self.training_params['REWARD_FILE_S3_KEY'] = "custom_files/%s" % model.reward_function_filename
+        self.training_params['MODEL_METADATA_FILE_S3_KEY'] = "custom_files/%s" % model.model_metadata_filename
+        self.training_params['RACE_TYPE'] = model.race_type
+        self.training_params['NUMBER_OF_OBSTACLES'] = model.number_of_obstacles
+        self.training_params['OBSTACLE_TYPE'] = model.obstacle_type
+        self.training_params['RANDOMIZE_OBSTACLE_LOCATIONS'] = model.randomize_obstacle_locations
 
 
 

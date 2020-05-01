@@ -6,7 +6,7 @@ import re
 import json
 import logging
 from manager import app, current_job, db
-from manager.models import TrainingJob
+from manager.models import LocalModel
 import redis
 from datetime import datetime
 
@@ -21,7 +21,7 @@ def tail_robomaker_logs(robomaker):
     app.robologger.info("IN TAIL_ROBOMAKER_LOGS")
 
     cwd = os.getcwd()
-    logs_path = "{}/data/minio/bucket/{}-{}/logs".format(cwd, current_job.training_job_id, current_job.training_job.name)
+    logs_path = "{}/data/minio/bucket/{}-{}/logs".format(cwd, current_job.local_model_id, current_job.local_model.name)
     if not os.path.exists(logs_path):
         app.logger.info("Creating logs directory: {}".format(logs_path))
         try:
@@ -59,7 +59,7 @@ def start_sagemaker_log_tail():
         time.sleep(1)
 
     cwd = os.getcwd()
-    logs_path = "{}/data/minio/bucket/{}-{}/logs".format(cwd, current_job.training_job_id, current_job.training_job.name)
+    logs_path = "{}/data/minio/bucket/{}-{}/logs".format(cwd, current_job.local_model_id, current_job.local_model.name)
     if not os.path.exists(logs_path):
         app.logger.info("Creating logs directory: {}".format(logs_path))
         try:
@@ -85,9 +85,9 @@ def start_sagemaker_log_tail():
 
 
 def tail_sagemaker_logs(sagemaker):
-
+    app.sagelogger.info("Starting sagemaker log tail")
     while True:
-        app.sagelogger.info("IN TAIL_SAGEMAKER_LOGS")
+
 
         generator = sagemaker.logs(stream=True, follow=True, tail=0)
 
@@ -118,8 +118,8 @@ def tail_sagemaker_logs(sagemaker):
                     # print("Matched sagemaker line")
                     current_job.status['episode_number'] = int(m.groups(2)[1])
                     current_job.status['iteration_number'] = int(m.groups(2)[4])
-                    if current_job.training_job:
-                        tj = TrainingJob.query.get(current_job.training_job_id)
+                    if current_job.local_model:
+                        tj = LocalModel.query.get(current_job.local_model_id)
                         tj.episodes_trained = int(m.groups(2)[1])
 
                         app.logger.debug("start_timestamp: {}".format(tj.start_timestamp))
@@ -148,9 +148,7 @@ def tail_sagemaker_logs(sagemaker):
 
                 line = ""
 
-            # line = line + char.decode("utf-8")
-
-        app.sagelogger.info("***EXIT*** tail_sagemaker_logs() exiting")
+        # app.sagelogger.info("***EXIT*** tail_sagemaker_logs() exiting")
 
 
 def tail_metrics():
@@ -177,7 +175,7 @@ def tail_metrics():
                     metric = json.loads(new_data[:-2])
 
                     if metric["episode_status"] == "Lap complete":
-                        job = TrainingJob.query.get(current_job.training_job_id)
+                        job = LocalModel.query.get(current_job.local_model_id)
                         db.session.refresh(job)
                         job.laps_complete += 1
                         if float(metric["elapsed_time_in_milliseconds"])/1000 > job.best_lap_time:
@@ -185,8 +183,8 @@ def tail_metrics():
                         db.session.commit()
 
                     current_job.metrics.append(metric)
-                    metric["job"] = current_job.training_job_id
-                    key = "metrics-{}".format(current_job.training_job_id)
+                    metric["job"] = current_job.local_model_id
+                    key = "metrics-{}".format(current_job.local_model_id)
 
                     app.logger.debug("METRIC: %s" % metric)
                     r.rpush(key, json.dumps(metric))

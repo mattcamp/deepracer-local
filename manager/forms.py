@@ -5,6 +5,7 @@ from wtforms.validators import DataRequired
 
 class NewJobForm(FlaskForm):
     name = StringField('Job name', validators=[DataRequired()])
+    description = StringField('Description')
     race_type = SelectField('Race type', choices=[('TIME_TRIAL', "Time Trial"),
                                                   ('OBJECT_AVOIDANCE', 'Object Avoidance'),
                                                   ('HEAD_TO_BOT', "Head to Bot"),
@@ -13,7 +14,8 @@ class NewJobForm(FlaskForm):
     reward_function_filename = SelectField('Reward Function filename', validators=[DataRequired()], default="reward.py")
     model_metadata_filename = SelectField('Model Metadata filename', validators=[DataRequired()],
                                           default="model_metadata.json")
-    episodes = IntegerField('Episodes to train', default=1000)
+    episodes = IntegerField('Episodes to train')
+    minutes_target = IntegerField('Minutes to train')
     episodes_between_training = IntegerField('Episodes between training', default=20)
     batch_size = IntegerField('Batch Size', default=10)
     epochs = IntegerField('Epochs', default=10)
