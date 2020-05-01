@@ -125,9 +125,9 @@ i {
 }
 
 .modal-dialog {
-    max-width: 90%;
+    min-width: 50%;
 }
 
-.form-group {
-    margin-bottom: 0;
-}
+/*.form-group {*/
+/*    margin-bottom: 0;*/
+/*}*/

@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, IntegerField, FloatField, SelectField
-from wtforms.validators import DataRequired
+from wtforms.validators import DataRequired, Optional
 
 
 class NewJobForm(FlaskForm):
@@ -14,8 +14,8 @@ class NewJobForm(FlaskForm):
     reward_function_filename = SelectField('Reward Function filename', validators=[DataRequired()], default="reward.py")
     model_metadata_filename = SelectField('Model Metadata filename', validators=[DataRequired()],
                                           default="model_metadata.json")
-    episodes = IntegerField('Episodes to train')
-    minutes_target = IntegerField('Minutes to train')
+    episodes = IntegerField('Episodes to train', validators=[Optional()])
+    minutes_target = IntegerField('Minutes to train', validators=[Optional()])
     episodes_between_training = IntegerField('Episodes between training', default=20)
     batch_size = IntegerField('Batch Size', default=10)
     epochs = IntegerField('Epochs', default=10)
@@ -29,4 +29,4 @@ class NewJobForm(FlaskForm):
     randomize_obstacle_locations = BooleanField('Random obstacle locations', false_values=(False, 'False', 'false', ''))
     change_start_position = BooleanField('Change start position', default=True, false_values=(False, 'False', 'false', ''))
     alternate_driving_direction = BooleanField('Alternate driving direction', default=False, false_values=(False, 'False', 'false', ''))
-    pretrained_model = SelectField('Pre-trained model')
+    pretrained_model = SelectField('Pre-trained model', validators=[Optional()])

@@ -16,7 +16,7 @@ client = docker.from_env()
 
 def main_loop():
     while True:
-        app.logger.debug("in main loop")
+        # app.logger.debug("in main loop")
         if current_job.local_model is not None:
             try:
                 local_model = LocalModel.query.get(current_job.local_model_id)
@@ -51,7 +51,8 @@ def main_loop():
             except Exception as e:
                 app.logger.error("ERROR in main_loop: {}".format(e))
         else:
-            app.logger.debug("no current job, waiting")
+            pass
+            # app.logger.debug("no current job, waiting")
         time.sleep(2)
 
 

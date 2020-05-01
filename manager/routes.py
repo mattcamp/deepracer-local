@@ -9,7 +9,6 @@ import json
 from os.path import isfile, isdir, join
 import redis
 
-modeldirs = [('None', '----')]
 track_choices = [
     ("Spain_track", "Circuit de Barcelona-Catalunya"),
     ("AmericasGeneratedInclStart", "Baadal"),
@@ -30,12 +29,52 @@ track_choices = [
     ("Virtual_May19_Train_track", "London Loop")
 
 ]
-reward_func_files = []
-metadata_files = []
 
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1", "y")
+
+
+def listRewardFuncFiles():
+    cwd = getcwd()
+    bucketpath = "{}/data/minio/bucket".format(cwd)
+    customfiles_dir = "{}/custom_files".format(bucketpath)
+    reward_func_files = []
+
+    for cf in listdir(customfiles_dir):
+        if isfile(join(customfiles_dir, cf)):
+            if ".py" in cf:
+                reward_func_files.append((cf, cf))
+
+    return reward_func_files
+
+
+def listMetadataFiles():
+    cwd = getcwd()
+    bucketpath = "{}/data/minio/bucket".format(cwd)
+    customfiles_dir = "{}/custom_files".format(bucketpath)
+    metadata_files = []
+
+    for cf in listdir(customfiles_dir):
+        if isfile(join(customfiles_dir, cf)):
+            if ".json" in cf:
+                metadata_files.append((cf, cf))
+
+    return metadata_files
+
+
+def listModelDirs():
+    cwd = getcwd()
+    bucketpath = "{}/data/minio/bucket".format(cwd)
+    modeldirs = [('None', '----')]
+    exclude_dirs = ["DeepRacer-Metrics", "custom_files"]
+
+    for f in listdir(bucketpath):
+        if isdir(join(bucketpath, f)):
+            if f not in exclude_dirs:
+                modeldirs.append((f, f))
+
+    return modeldirs
 
 
 @app.route('/')
@@ -65,58 +104,42 @@ def index():
         "AmericasGeneratedInclStart"
     ]
 
-    cwd = getcwd()
-    bucketpath = "{}/data/minio/bucket".format(cwd)
-    customfiles_dir = "{}/custom_files".format(bucketpath)
-
-    modeldirs = [('None', '----')]
-    metadata_files = []
-    reward_func_files = []
-    exclude_dirs = ["DeepRacer-Metrics", "custom_files"]
-
-    for f in listdir(bucketpath):
-        if isdir(join(bucketpath, f)):
-            if f not in exclude_dirs:
-                modeldirs.append((f, f))
-
-    for cf in listdir(customfiles_dir):
-        if isfile(join(customfiles_dir, cf)):
-            if ".json" in cf:
-                metadata_files.append((cf, cf))
-            if ".py" in cf:
-                reward_func_files.append((cf, cf))
-
-    # track_choices = []
-    # for track in tracks:
-    #     track_choices.append((track, track))
-
     form = NewJobForm()
     form.track.choices = track_choices
-    form.pretrained_model.choices = modeldirs
-    form.model_metadata_filename.choices = metadata_files
-    form.reward_function_filename.choices = reward_func_files
+    form.pretrained_model.choices = listModelDirs()
+    form.model_metadata_filename.choices = listMetadataFiles()
+    form.reward_function_filename.choices = listRewardFuncFiles()
     return render_template('index.html', form=form)
 
 
 @app.route('/models', methods=["GET", "POST"])
 def models():
-    form = NewJobForm()
-    form.track.choices = track_choices
-    form.pretrained_model.choices = modeldirs
-    form.model_metadata_filename.choices = metadata_files
-    form.reward_function_filename.choices = reward_func_files
-
     if request.method == "POST":
-        print(request.form)
+        form = NewJobForm(request.form)
+        form.track.choices = track_choices
+        form.pretrained_model.choices = listModelDirs()
+        form.model_metadata_filename.choices = listMetadataFiles()
+        form.reward_function_filename.choices = listRewardFuncFiles()
 
         if form.validate_on_submit():
-            print("CHANGE_START_DATA: {}".format(form.change_start_position.data))
+            app.logger.debug("/models POST form is valid: {}".format(form.data))
         else:
-            print(form.errors)
+            app.logger.error("validation failed: {}".format(form.errors))
+            return (jsonify(form.errors), 400)
 
         data = request.form.to_dict(flat=True)
         del data['csrf_token']
-        app.logger.info("Saving job: %s" % data)
+        app.logger.debug("Saving job: %s" % data)
+
+        if data['id']:
+            app.logger.debug("Editing job {}".format(data['id']))
+            this_model = LocalModel.query.get(data['id'])
+
+            if this_model.status != "queued":
+                return "Cannot edit job once training has started", 400
+        else:
+            this_model = LocalModel()
+
         if not data['name']:
             return ("Must provide job name", 400)
         if not data['track']:
@@ -125,6 +148,14 @@ def models():
             return ("Must provide model metadata filename", 400)
         if not data['reward_function_filename']:
             return ("Must provide reward function filename", 400)
+
+        if data['episodes'] != '' and int(data['episodes'])>0:
+            this_model.episodes_target = int(data['episodes'])
+
+        elif data['minutes_target'] != '' and int(data['minutes_target']) > 0:
+            this_model.minutes_target = int(data['minutes_target'])
+        else:
+            return ("Must provide either target minutes or episodes", 400)
 
         if data['id']:
             app.logger.info("Editing job {}".format(data['id']))
@@ -139,7 +170,6 @@ def models():
         this_model.track = data['track']
         this_model.reward_function_filename = data['reward_function_filename']
         this_model.model_metadata_filename = data['model_metadata_filename']
-        this_model.episodes_target = int(data['episodes'])
         this_model.episodes_between_training = int(data['episodes_between_training'])
         this_model.batch_size = int(data['batch_size'])
         this_model.epochs = int(data['epochs'])
@@ -159,6 +189,7 @@ def models():
         this_model.alternate_direction = str2bool(data['alternate_driving_direction'])
         this_model.pretrained_model = data['pretrained_model']
 
+        db.session.add(this_model)
         db.session.commit()
 
         if this_model:
@@ -177,10 +208,8 @@ def models():
 
 @app.route('/model/<model_id>', methods=["GET", "POST", "DELETE"])
 def model(model_id):
-    app.logger.info("in model({})".format(model_id))
-
     if not model_id:
-        return "Job not found", 404
+        return "Model not found", 404
 
     if request.method == "DELETE":
         app.logger.info("Got delete for model {}".format(model_id))

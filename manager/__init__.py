@@ -9,6 +9,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_bootstrap import Bootstrap
+from flask_wtf.csrf import CSRFProtect
 from manager.currentjob import CurrentJob
 
 
@@ -58,7 +59,9 @@ from manager import models
 
 migrate = Migrate(app, db)
 db.init_app(app)
+csrf = CSRFProtect(app)
 Bootstrap(app)
+
 
 
 if click.get_current_context().command.name == "run":
