@@ -9,7 +9,7 @@ class CurrentJob():
         print("*** CurrentJob init")
         self.minio_image = "minio/minio"
         self.coach_image = "mattcamp/dr-coach"
-        self.robomaker_image = "awsdeepracercommunity/deepracer-robomaker:2.0.3-cpu-avx2"
+        self.robomaker_image = "awsdeepracercommunity/deepracer-robomaker:oadebug"
 
         self.docker_env = {
             'ALTERNATE_DRIVING_DIRECTION': None,
@@ -78,7 +78,7 @@ class CurrentJob():
         self.metricstail = None
 
         self.desired_state = None
-        self.target_episodes = 0
+        self.minutes_target = 0
 
         self.status = {
             'status_id': None,
@@ -134,7 +134,7 @@ class CurrentJob():
     def configure_from_queued_job(self, model):
         self.local_model = model
         self.local_model_id = model.id
-        self.target_episodes = model.episodes_target
+        self.minutes_target = model.minutes_target
         self.status["model_id"] = model.id
         self.status["episodes_per_iteration"] = model.episodes_between_training
 
@@ -165,7 +165,7 @@ class CurrentJob():
         self.docker_env['ENABLE_KINESIS'] = "False"
 
         self.training_params['WORLD_NAME'] = model.track
-        self.training_params['NUMBER_OF_EPISODES'] = model.episodes_target
+        # self.training_params['NUMBER_OF_EPISODES'] = model.episodes_target
         self.training_params['SAGEMAKER_SHARED_S3_PREFIX'] = "{}-{}".format(model.id, model.name)
         self.training_params['CHANGE_START_POSITION'] = model.change_start_position
         self.training_params['ALTERNATE_DRIVING_DIRECTION'] = model.alternate_direction

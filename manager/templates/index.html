@@ -70,8 +70,12 @@
                     </div>
                 </div>
 
-                <div class="row statusRow">
-                    <div class="currentStatus col-sm-5">
+{#                <div class="row statusRow">#}
+{#                    #}
+{#                </div>#}
+
+                <div class="row statRow">
+                    <div class="currentStatus col-sm-4">
                         Training session status:
                         <table class="table table-dark table-sm">
                             <tr>
@@ -91,22 +95,39 @@
                                 <td id="sessionIteration"></td>
                             </tr>
                             <tr>
-                                <th>Best Checkpoint:</th>
-                                <td id="sessionBestCheckpoint"></td>
+                                <th>Laps complete:</th>
+                                <td id="sessionLapsComplete"></td>
                             </tr>
+                            <tr>
+                                <th>Laps off-track:</th>
+                                <td id="sessionLapsOffTrack"></td>
+                            </tr>
+                            <tr>
+                                <th>Laps crashed:</th>
+                                <td id="sessionLapsCrashed"></td>
+                            </tr>
+
                         </table>
                     </div>
-                </div>
-
-                <div class="row statRow">
                     <div class="statBox col-sm-4">
                         <div id="rewardChart" width="100%"></div>
                     </div>
+                    <div class="videoStream col-sm-4">
+                        <img id="videoImg" width="100%" src="/static/nosignal.png">
+                    </div>
+
+                </div>
+
+                <div class="row statRow">
+
                     <div class="statBox col-sm-4">
                         <div id="completeChart" width="100%"></div>
                     </div>
-                    <div class="videoStream col-sm-4">
-                        <img id="videoImg" width="100%" src="/static/nosignal.png">
+                    <div class="statBox col-sm-4">
+                        <div id="statusChart" width="100%"></div>
+                    </div>
+                    <div class="statBox col-sm-4">
+                        <div id="entropyChart" width="100%"></div>
                     </div>
                 </div>
 
@@ -117,6 +138,7 @@
         <div class="flex-column">
             <div class="footerRow p-0" id="footer"></div>
         </div>
+
     </div>
 
     <div class="modal fade" id="newModelModal" tabindex="-1" role="dialog" aria-labelledby="newModelModalLabel"
@@ -143,21 +165,26 @@
                         {{ render_field(form.name) }}
                         {{ render_field(form.description) }}
                         {{ render_field(form.reward_function_filename) }}
-                        {{ render_field(form.model_metadata_filename) }}
                         {{ render_field(form.pretrained_model) }}
+{#                        {{ render_field(form.nn_layers) }}#}
+
+
+                        <h5>Car setup</h5>
+                        {{ render_field(form.model_metadata_filename) }}
+{#                        {{ render_field(form.sensor_stereo_cameras) }}#}
+{#                        {{ render_field(form.sensor_lidar) }}#}
 
                         <h5>Training environment:</h5>
                         {{ render_field(form.race_type) }}
                         {{ render_field(form.track) }}
                         {{ render_field(form.number_of_obstacles) }}
 
+
                         <div class="form-group row">
                             <label for="randomize_obstacle_locations" class="col-sm-3 col-form-label">Random obstacle
                                 locations</label>
                             <div class="col-sm-9">
-                                <input type="checkbox" id="randomize_obstacle_locations"
-                                       name="randomize_obstacle_locations"
-                                       value="true">
+                                {{ form.randomize_obstacle_locations }}
                             </div>
                         </div>
 
@@ -165,18 +192,15 @@
                             <label for="change_start_position" class="col-sm-3 col-form-label">Change start
                                 position</label>
                             <div class="col-sm-9">
-                                <input type="checkbox" id="change_start_position" name="change_start_position"
-                                       value="true">
+                                {{  form.change_start_position }}
                             </div>
                         </div>
 
                         <div class="form-group row">
-                            <label for="alternate_driving_direction" class="col-sm-3 col-form-label">Alternate
+                            <label for="alternate_direction" class="col-sm-3 col-form-label">Alternate
                                 direction</label>
                             <div class="col-sm-9">
-                                <input type="checkbox" id="alternate_driving_direction"
-                                       name="alternate_driving_direction"
-                                       value="true">
+                                {{ form.alternate_direction }}
                             </div>
                         </div>
 
@@ -189,19 +213,10 @@
                         {{ render_field(form.discount_factor) }}
                         {{ render_field(form.loss_type) }}
 
-
-                        <h5>End training after:</h5>
                         <div class="form-group row">
-                            <label for="minutes_target" class="col-sm-3 col-form-label">Minutes</label>
+                            <label for="minutes_target" class="col-sm-3 col-form-label">End after</label>
                             <div class="col-sm-3">
-                                <input type="text" id="minutes_target" name="minutes_target">
-                            </div>
-                        </div>
-                        or
-                        <div class="form-group row">
-                            <label for="episodes" class="col-sm-3 col-form-label">Episodes</label>
-                            <div class="col-sm-3">
-                                <input type="text" id="episodes" name="episodes">
+                                <input type="text" id="minutes_target" name="minutes_target" size="5"> minutes
                             </div>
                         </div>
 
@@ -246,12 +261,6 @@
             </div>
         </div>
     </div>
-
-    <script type="text/javascript">
-        var csrf_token = "{{ csrf_token() }}";
-
-
-    </script>
 
 {% endblock %}
 

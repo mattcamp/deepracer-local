@@ -59,7 +59,7 @@ from manager import models
 
 migrate = Migrate(app, db)
 db.init_app(app)
-csrf = CSRFProtect(app)
+# csrf = CSRFProtect(app)
 Bootstrap(app)
 
 

@@ -74,6 +74,10 @@ def listModelDirs():
             if f not in exclude_dirs:
                 modeldirs.append((f, f))
 
+    queued_models = LocalModel.query.filter_by(status="queued").all()
+    for qm in queued_models:
+        modeldirs.append(("{}-{}".format(qm.id, qm.name), "{}-{}".format(qm.id, qm.name)))
+
     return modeldirs
 
 
@@ -109,6 +113,7 @@ def index():
     form.pretrained_model.choices = listModelDirs()
     form.model_metadata_filename.choices = listMetadataFiles()
     form.reward_function_filename.choices = listRewardFuncFiles()
+    print(form.change_start_position)
     return render_template('index.html', form=form)
 
 
@@ -120,6 +125,7 @@ def models():
         form.pretrained_model.choices = listModelDirs()
         form.model_metadata_filename.choices = listMetadataFiles()
         form.reward_function_filename.choices = listRewardFuncFiles()
+        # form.nn_layers.choices = [(3,3), (5,5)]
 
         if form.validate_on_submit():
             app.logger.debug("/models POST form is valid: {}".format(form.data))
@@ -149,20 +155,10 @@ def models():
         if not data['reward_function_filename']:
             return ("Must provide reward function filename", 400)
 
-        if data['episodes'] != '' and int(data['episodes'])>0:
-            this_model.episodes_target = int(data['episodes'])
-
-        elif data['minutes_target'] != '' and int(data['minutes_target']) > 0:
+        if data['minutes_target'] != '' and int(data['minutes_target']) > 0:
             this_model.minutes_target = int(data['minutes_target'])
         else:
-            return ("Must provide either target minutes or episodes", 400)
-
-        if data['id']:
-            app.logger.info("Editing job {}".format(data['id']))
-            this_model = LocalModel.query.get(data['id'])
-        else:
-            this_model = LocalModel()
-            db.session.add(this_model)
+            return ("Must provide target minutes", 400)
 
         this_model.name = data['name']
         this_model.description = data['description']
@@ -182,11 +178,11 @@ def models():
 
         app.logger.debug(
             "change_start: {}={}".format(data['change_start_position'], str2bool(data['change_start_position'])))
-        app.logger.debug("alternate_direction: {}={}".format(data['alternate_driving_direction'],
-                                                             str2bool(data['alternate_driving_direction'])))
+        app.logger.debug("alternate_direction: {}={}".format(data['alternate_direction'],
+                                                             str2bool(data['alternate_direction'])))
 
         this_model.change_start_position = str2bool(data['change_start_position'])
-        this_model.alternate_direction = str2bool(data['alternate_driving_direction'])
+        this_model.alternate_direction = str2bool(data['alternate_direction'])
         this_model.pretrained_model = data['pretrained_model']
 
         db.session.add(this_model)
@@ -340,6 +336,6 @@ def pretrained_dirs():
 
     queued_models = LocalModel.query.filter_by(status="queued").all()
     for qm in queued_models:
-        modeldirs.append({"value": qm.name, "text": qm.name})
+        modeldirs.append({"value": "{}-{}".format(qm.id, qm.name), "text": "{}-{}".format(qm.id, qm.name)})
 
     return jsonify(modeldirs)

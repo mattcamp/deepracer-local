@@ -6,7 +6,6 @@ import logging
 import redis
 from datetime import datetime
 
-
 from manager import app, current_job, db
 from manager.models import LocalModel
 from .log_watchers import tail_robomaker_logs, tail_sagemaker_logs, tail_metrics, start_sagemaker_log_tail
@@ -25,7 +24,7 @@ def main_loop():
                     "Status: {} {}: {} / {}".format(local_model.name,
                                                     local_model.status,
                                                     current_job.status['episode_number'],
-                                                    current_job.target_episodes))
+                                                    current_job.minutes_target))
 
                 if local_model.status == "training":
                     if local_model.start_timestamp:
@@ -39,10 +38,10 @@ def main_loop():
                     # else:
                     #     app.logger.warning("Timestamp is {}".format(local_model.start_timestamp))
 
-                    if current_job.status['episode_number'] > current_job.target_episodes:
+                    if minutes >= local_model.minutes_target:
                         app.logger.info(
-                            "Target episode number reached! {} / {}".format(current_job.status['episode_number'],
-                                                                            current_job.target_episodes))
+                            "Target {} minutes reached at episode {}".format(minutes,
+                                                                             current_job.status['episode_number']))
                         local_model.status = "complete"
                         db.session.commit()
 
@@ -119,7 +118,7 @@ def write_training_params(filename):
 def setup_bucket():
     try:
         cwd = os.getcwd()
-        bucket_path = "{}/data/minio/bucket/{}-{}".format(cwd, current_job.local_model_id ,current_job.local_model.name)
+        bucket_path = "{}/data/minio/bucket/{}-{}".format(cwd, current_job.local_model_id, current_job.local_model.name)
         if os.path.exists(bucket_path):
             app.logger.info("Path exists: %s" % bucket_path)
             old_bucket_path = "%s.old" % bucket_path
@@ -162,7 +161,7 @@ def start_next_job():
     next_job = LocalModel.query.filter_by(status="queued").first()
     if next_job:
         app.logger.info("Starting next queued job: {}".format(next_job.name))
-        start_local_model(next_job)
+        start_training_job(next_job)
     else:
         app.logger.info("No queued jobs found")
 
@@ -230,13 +229,18 @@ def start_all_containers():
     if not current_job.robomaker_container:
         app.logger.info("Starting robomaker")
         robomaker_data_dir = "%s/data/robomaker" % cwd
+        markov_dir = "%s/markov" % cwd
         current_job.robomaker_container = client.containers.run(current_job.robomaker_image,
                                                                 name="robomaker",
                                                                 network=network.id,
                                                                 environment=current_job.docker_env,
                                                                 ports={5900: 8000, 8080: 8080},
                                                                 volumes={robomaker_data_dir: {'bind': '/root/.ros/',
-                                                                                              'mode': 'rw'}},
+                                                                                              'mode': 'rw'}
+                                                                         # markov_dir: {
+                                                                         #     'bind': '/opt/install/sagemaker_rl_agent/lib/python3.5/site-packages/markov/',
+                                                                         #     'mode': 'rw'}
+                                                                         },
                                                                 detach=True,
                                                                 remove=True)
 

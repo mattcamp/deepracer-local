@@ -34,7 +34,12 @@ class LocalModel(BaseModel):
     number_of_obstacles = db.Column(db.Integer, default=0)
     obstacle_type = db.Column(db.String(16), default="BOX")
     randomize_obstacle_locations = db.Column(db.Boolean, default=False)
-    # TODO: Add h2h options
+
+    number_of_bot_cars = db.Column(db.Integer, default=0)
+    bot_car_speed = db.Column(db.Float, default=1.0)
+    is_lane_change = db.Column(db.Boolean, default=False)
+    upper_lane_change_time = db.Column(db.Integer, default=5)
+    lower_lane_change_time = db.Column(db.Integer, default=5)
 
     status = db.Column(db.String(64), default="queued")
 
@@ -45,6 +50,8 @@ class LocalModel(BaseModel):
     average_pct_complete = db.Column(db.Float, default=0.0)
     best_lap_time = db.Column(db.Float, default=0.0)
     best_lap_episode = db.Column(db.Integer, default=0)
+    crashes = db.Column(db.Integer, default=0)
+    off_tracks = db.Column(db.Integer, default=0)
 
     minutes_target = db.Column(db.Integer, default=0)
     minutes_trained = db.Column(db.Integer, default=0)

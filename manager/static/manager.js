@@ -17,11 +17,14 @@ var currentModelID = null;
 
 var rewardChart;
 var completeChart;
+var statusChart;
+var entropyChart;
+var currentChart = null;
 
 var best_episode = 0;
 var best_eval_complete = 0;
 
-var episodes_per_iteration = 20;
+var episodesPerIteration = 20;
 
 // global vars for calculating metric averages
 var current_episode_number = 0;
@@ -31,6 +34,11 @@ var current_episode_training_completion_total = 0;
 var current_episode_eval_count = 0;
 var current_episode_eval_reward_total = 0;
 var current_episode_eval_completion_total = 0;
+var current_episode_eval_complete_count = 0;
+var current_episode_eval_offtrack_count = 0;
+var current_episode_eval_crashed_count = 0;
+var current_episode_eval_reversed_count = 0;
+
 var previous_phase = null;
 
 
@@ -54,12 +62,12 @@ var previous_phase = null;
 $(document).ready(function () {
 
     $.ajaxSetup({
-            beforeSend: function (xhr, settings) {
-                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-                    xhr.setRequestHeader("X-CSRFToken", csrf_token);
-                }
+        beforeSend: function (xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", csrf_token);
             }
-        });
+        }
+    });
 
     $('#saveModelButton').click(function () {
         saveModel();
@@ -86,18 +94,18 @@ $(document).ready(function () {
 
     updateStatus();
     initModelsTable();
-    setTimeout(initRewardChart, 2000); // Delay 2s to let systemState update
+    setTimeout(initCharts, 2000); // Delay 2s to let systemState update
     setInterval(updateStatus, 2000);
     setInterval(updateGraphs, 5000);
 });
 
 function setContainerStatus(element, status) {
-    if (status=="running") {
-        $("#"+element).removeClass("btn-secondary");
-        $("#"+element).addClass("btn-success");
+    if (status == "running") {
+        $("#" + element).removeClass("btn-secondary");
+        $("#" + element).addClass("btn-success");
     } else {
-        $("#"+element).addClass("btn-secondary");
-        $("#"+element).removeClass("btn-success");
+        $("#" + element).addClass("btn-secondary");
+        $("#" + element).removeClass("btn-success");
     }
 }
 
@@ -112,11 +120,11 @@ function updateStatus() {
             sagemakerStatus = data['sagemaker_status'];
             robomakerStatus = data['robomaker_status'];
             currentModelID = data['model_id'];
-            episodes_per_iteration = data["episodes_per_iteration"];
+            episodesPerIteration = data["episodes_per_iteration"];
 
             $('#sessionEpisode').html(data['episode_number']);
             $('#sessionIteration').html(data['iteration_number']);
-            $('#sessionBestCheckpoint').html(data['best_checkpoint']);
+            // $('#sessionBestCheckpoint').html(data['best_checkpoint']);
 
             if (coachStatus && sagemakerStatus && robomakerStatus) {
                 systemState = "running";
@@ -218,30 +226,36 @@ function deleteModel(model_id, confirmed = false) {
 
 function initModelsTable() {
     var columns = [
-        {title: "Model Name", field: "name", sorter: "string"},
-        {title: "Description", field: "description", sorter: "string"},
-        {title: "Status", field: "status", formatter: "plaintext", align: "center"},
+        {title: "ID", field: "id", sorter: "number", width: 50, responsive: 1},
+        {title: "Model Name", field: "name", sorter: "string", responsive: 0},
+        {title: "Description", field: "description", sorter: "string", responsive: 2},
+        {title: "Status", field: "status", formatter: "plaintext", align: "center", responsive: 0},
         {title: "Target Episodes", field: "episodes_target", sorter: "number", align: "center"},
-        {title: "Episodes trained", field: "episodes_trained", formatter: "plaintext", align: "center"},
-        {title: "Laps complete", field: "laps_complete", sorter: "number", align: "center"},
-        {title: "Fastest lap", field: "best_lap_time", sorter: "number", align: "center"},
+        {title: "Episodes trained", field: "episodes_trained", formatter: "plaintext", align: "center", responsive: 1},
+        {title: "Laps complete", field: "laps_complete", sorter: "number", align: "center", responsive: 1},
+        {title: "Fastest lap", field: "best_lap_time", sorter: "number", align: "center", responsive: 1},
         {
             formatter: editIcon, width: 40, align: "center", cellClick: function (e, cell) {
                 editModel(cell.getRow().getData().id)
-            }
+            }, responsive: 0
         },
         {
             formatter: delIcon, width: 40, align: "center", cellClick: function (e, cell) {
                 deleteModel(cell.getRow().getData().id)
-            }
+            }, responsive: 0
         }
     ];
     let url = "/models";
     modelsTable = new Tabulator("#modelsTable", {
         columns: columns,
         layout: "fitColumns",
-        height: "150"
-        // ajaxURL: url
+        responsiveLayout: "hide",
+        height: "150",
+        rowClick: function (e, row) {
+            model_id = row.getCell("id").getValue();
+            model_name = row.getCell("name").getValue();
+            initCharts(row.getCell("id").getValue());
+        }
     });
     updateModelsTable();
 }
@@ -269,6 +283,16 @@ function editModel(model_id) {
         .done(function (data) {
             for (var key in data) {
                 $("#" + key).val(data[key]);
+                console.log(key + " = ["+data[key]+"]");
+                if ($("#" + key).is(':checkbox')) {
+                    console.log("is checkbox");
+                    if (data[key] == true) {
+                        console.log("Setting checked");
+                        $("#" + key).attr('checked', true);
+                    } else {
+                        $("#" + key).attr('checked', false);
+                    }
+                }
             }
             $("#newModelModal").modal();
 
@@ -304,10 +328,10 @@ function startTraining() {
     completeChart.series[1].data = [];
     completeChart.series[2].data = [];
 
-
+    currentModelID = null;
 
     setTimeout(startVideo, 5000);
-    initRewardChart();
+    initCharts();
 }
 
 function stopTraining() {
@@ -365,7 +389,13 @@ function updateGraphs() {
         // console.log("No training job ID yet")
         return 0;
     }
-    footer("Fetching metrics since episode "+lastMetricsEpisode);
+
+
+    // Don't update graphs unless we're showing the graphs for a model currently being trained
+    if (currentChart != currentModelID) {
+        return 0;
+    }
+    footer("Fetching metrics since episode " + lastMetricsEpisode);
     // console.log("Starting data update from episode " + lastMetricsEpisode);
     $.get("/metrics/" + currentModelID + "?from_episode=" + lastMetricsEpisode)
         .done(function (data) {
@@ -382,7 +412,7 @@ function updateGraphs() {
                 current_episode_number = metric["episode"];
                 lastMetricsEpisode = current_episode_number;
 
-                iteration = parseInt(current_episode_number / episodes_per_iteration) + 1;
+                iteration = parseInt(current_episode_number / episodesPerIteration) + 1;
 
                 // console.log("1: "+ current_episode_number % 30);
                 // var iteration = current_episode_number % episodes_per_iteration;
@@ -402,8 +432,8 @@ function updateGraphs() {
 
                         if (eval_average_completion > best_eval_complete) {
                             best_eval_complete = eval_average_completion;
-                            console.log("Best now " + best_eval_complete + " at episode "+ current_episode_number-1);
-                            new_best_episode = current_episode_number-1;
+                            console.log("Best now " + best_eval_complete + " at episode " + current_episode_number - 1);
+                            new_best_episode = current_episode_number - 1;
                             // TODO: plotLine
                         }
 
@@ -452,8 +482,8 @@ function updateGraphs() {
 
             if (new_best_episode > best_episode) {
                 best_episode = new_best_episode;
-                console.log("Plotlines: "+rewardChart.xAxis[0].plotLines);
-                console.log("Adding new best plotline at episode "+best_episode);
+                console.log("Plotlines: " + rewardChart.xAxis[0].plotLines);
+                console.log("Adding new best plotline at episode " + best_episode);
                 rewardChart.xAxis[0].removePlotLine("best");
                 rewardChart.xAxis[0].addPlotLine({
                     value: best_episode,
@@ -480,8 +510,12 @@ function updateGraphs() {
         });
 }
 
-function initRewardChart() {
-    console.log("initRewardChart()");
+function initCharts(model_id = null) {
+    if (model_id == null) {
+        model_id = currentModelID;
+    }
+    console.log("initRewardChart() for model_id=" + model_id);
+    currentChart = model_id;
     var rewardOptions = {
         chart: {
             type: 'line',
@@ -493,7 +527,8 @@ function initRewardChart() {
         xAxis: {
             title: {
                 text: 'Episode'
-            }
+            },
+            min: 0
         },
         yAxis: [{ // Primary yAxis
             labels: {
@@ -511,6 +546,7 @@ function initRewardChart() {
             title: {
                 text: 'Percentage lap complete',
             },
+            max: 100,
             opposite: true,
         }],
         series: [{
@@ -541,7 +577,8 @@ function initRewardChart() {
         xAxis: {
             title: {
                 text: 'Episode'
-            }
+            },
+            min: 0
         },
         yAxis: [{ // Primary yAxis
             labels: {
@@ -582,8 +619,92 @@ function initRewardChart() {
         }]
     };
 
-    footer("Fetching metrics since episode "+lastMetricsEpisode);
-    let url = "/metrics/" + currentModelID + "?from_episode=" + lastMetricsEpisode;
+    var statusOptions = {
+        chart: {
+            height: "75%",
+            type: "line"
+        },
+        title: {
+            text: 'Lap status'
+        },
+        xAxis: {
+            title: {
+                text: 'Episode'
+            },
+            min: 0
+        },
+        yAxis: [{
+            labels: {
+                style: {
+                    color: "#1d8102"
+                }
+            },
+            title: {
+                text: '% of eval laps',
+            }
+        }],
+        plotOptions: {
+            column: {
+                stacking: 'percent'
+            }
+        },
+        series: [{
+            name: 'Lap complete',
+            color: "#1d8102",
+            data: [],
+        }, {
+            name: 'Off track',
+            data: [],
+            color: "#ffc502",
+        }, {
+            name: 'Crashed',
+            color: "#AA0000",
+            data: []
+        }, {
+            name: 'Reversed',
+            color: "#00a29f",
+            data: []
+        }
+        ]
+    };
+
+    var entropyOptions = {
+        chart: {
+            height: "75%",
+            type: "line"
+        },
+        title: {
+            text: 'Entropy'
+        },
+        xAxis: {
+            title: {
+                text: 'Episode'
+            },
+            min: 0
+        },
+        yAxis: [{
+            labels: {
+                style: {
+                    color: "#1d8102"
+                }
+            },
+            title: {
+                text: 'Entropy',
+            }
+        }],
+        series: [{
+            name: 'Entropy',
+            color: "#182ac4",
+            data: [],
+        }
+        ]
+    };
+
+
+    footer("Fetching all metrics for model ID " + model_id);
+    // let url = "/metrics/" + currentModelID + "?from_episode=" + lastMetricsEpisode;
+
+    let url = "/metrics/" + model_id;
     console.log(url);
     $.ajax({
         url: url,
@@ -596,13 +717,17 @@ function initRewardChart() {
             var complete_eval_reward = [];
             var complete_training_times = [];
             var complete_training_reward = [];
-            console.log("got "+data.length+" metrics");
+            var complete_avg_data = [];
+            var offtrack_avg_data = [];
+            var crashed_avg_data = [];
+            var reversed_avg_data = [];
+            console.log("got " + data.length + " metrics");
             footer("Processing metrics...");
             data.forEach(function (metric) {
                 current_episode_number = metric["episode"];
                 lastMetricsEpisode = current_episode_number;
                 // iteration = metric["trial"];
-                iteration = parseInt(current_episode_number / episodes_per_iteration) + 1;
+                iteration = parseInt(current_episode_number / episodesPerIteration) + 1;
                 // var iteration = current_episode_number % episodes_per_iteration;
                 // iteration += 1;
 
@@ -616,13 +741,23 @@ function initRewardChart() {
                         var eval_average_completion = current_episode_eval_completion_total / current_episode_eval_count;
 
                         // eval_reward_data.push([current_episode_number, eval_average_reward]);
-                        eval_completion_data.push([current_episode_number-1, eval_average_completion]);
+                        eval_completion_data.push([current_episode_number - 1, eval_average_completion]);
 
                         if (eval_average_completion > best_eval_complete) {
                             best_eval_complete = eval_average_completion;
-                            console.log("Best now " + best_eval_complete + " at episode "+ (current_episode_number-1));
-                            best_episode = current_episode_number-1;
+                            console.log("Best now " + best_eval_complete + " at episode " + (current_episode_number - 1));
+                            best_episode = current_episode_number - 1;
                         }
+
+                        let complete_avg = (current_episode_eval_complete_count/current_episode_eval_count)*100;
+                        let offtrack_avg = (current_episode_eval_offtrack_count/current_episode_eval_count)*100;
+                        let crashed_avg = (current_episode_eval_crashed_count/current_episode_eval_count)*100;
+                        let reversed_avg = (current_episode_eval_reversed_count/current_episode_eval_count)*100;
+                        complete_avg_data.push([current_episode_number - 1, complete_avg]);
+                        offtrack_avg_data.push([current_episode_number - 1, offtrack_avg]);
+                        crashed_avg_data.push([current_episode_number - 1, crashed_avg]);
+                        reversed_avg_data.push([current_episode_number - 1, reversed_avg]);
+
                     }
                     current_episode_training_count += 1;
                     current_episode_training_completion_total += metric["completion_percentage"];
@@ -634,6 +769,10 @@ function initRewardChart() {
                         current_episode_eval_count = 0;
                         current_episode_eval_reward_total = 0;
                         current_episode_eval_completion_total = 0;
+                        current_episode_eval_complete_count = 0;
+                        current_episode_eval_crashed_count = 0;
+                        current_episode_eval_offtrack_count = 0;
+                        current_episode_eval_reversed_count = 0;
 
                         var training_average_reward = current_episode_training_reward_total / current_episode_training_count;
                         var training_average_completion = current_episode_training_completion_total / current_episode_training_count;
@@ -656,7 +795,20 @@ function initRewardChart() {
                     if (metric["phase"] == "evaluation") {
                         complete_eval_times.push([current_episode_number, metric["elapsed_time_in_milliseconds"] / 1000]);
                         complete_eval_reward.push([current_episode_number, metric["reward_score"]]);
+                        current_episode_eval_complete_count += 1;
                     }
+                }
+
+                if (metric["episode_status"] == "Off track" && metric["phase"] == "evaluation") {
+                    current_episode_eval_offtrack_count += 1;
+                }
+
+                if (metric["episode_status"] == "Crashed" && metric["phase"] == "evaluation") {
+                    current_episode_eval_crashed_count += 1;
+                }
+
+                if (metric["episode_status"] == "Reversed" && metric["phase"] == "evaluation") {
+                    current_episode_eval_reversed_count += 1;
                 }
             });
 
@@ -671,11 +823,18 @@ function initRewardChart() {
             completeOptions.series[2].data = complete_eval_times;
             // completeOptions.series[3].data = complete_eval_reward;
 
+            statusOptions.series[0].data = complete_avg_data;
+            statusOptions.series[1].data = offtrack_avg_data;
+            statusOptions.series[2].data = crashed_avg_data;
+            statusOptions.series[3].data = reversed_avg_data;
+
             rewardChart = new Highcharts.Chart('rewardChart', rewardOptions);
             completeChart = new Highcharts.Chart('completeChart', completeOptions);
+            statusChart = new Highcharts.Chart('statusChart', statusOptions);
+            entropyChart = new Highcharts.Chart('entropyChart', entropyOptions);
 
             rewardChart.xAxis[0].addPlotLine({
-                value: best_episode-1,
+                value: best_episode - 1,
                 color: 'grey',
                 dashStyle: "ShortDash",
                 id: 'best',
@@ -690,5 +849,5 @@ function initRewardChart() {
 }
 
 function footer(msg) {
-    $("#footer").text("Status: "+msg);
+    $("#footer").text("Status: " + msg);
 }
