@@ -3,3 +3,4 @@ data/minio/bucket/current
 data/minio/.minio.sys
 .idea
 **/.idea
+__pycache__
