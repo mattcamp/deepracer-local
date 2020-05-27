@@ -38,15 +38,15 @@ def main_loop():
                     # else:
                     #     app.logger.warning("Timestamp is {}".format(local_model.start_timestamp))
 
-                    if minutes >= local_model.minutes_target:
-                        app.logger.info(
-                            "Target {} minutes reached at episode {}".format(minutes,
-                                                                             current_job.status['episode_number']))
-                        local_model.status = "complete"
-                        db.session.commit()
+                        if minutes >= local_model.minutes_target:
+                            app.logger.info(
+                                "Target {} minutes reached at episode {}".format(minutes,
+                                                                                 current_job.status['episode_number']))
+                            local_model.status = "complete"
+                            db.session.commit()
 
-                        stop_all_containers()
-                        start_next_job()
+                            stop_all_containers()
+                            start_next_job()
             except Exception as e:
                 app.logger.error("ERROR in main_loop: {}".format(e))
         else:

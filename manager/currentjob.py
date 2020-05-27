@@ -9,7 +9,7 @@ class CurrentJob():
         print("*** CurrentJob init")
         self.minio_image = "minio/minio"
         self.coach_image = "mattcamp/dr-coach"
-        self.robomaker_image = "awsdeepracercommunity/deepracer-robomaker:oadebug"
+        self.robomaker_image = "awsdeepracercommunity/deepracer-robomaker:cpu"
 
         self.docker_env = {
             'ALTERNATE_DRIVING_DIRECTION': None,

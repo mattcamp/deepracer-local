@@ -85,6 +85,7 @@ def start_sagemaker_log_tail():
 
 
 def tail_sagemaker_logs(sagemaker):
+    entropy_data = []
     app.sagelogger.info("Starting sagemaker log tail")
     while True:
 
@@ -118,6 +119,7 @@ def tail_sagemaker_logs(sagemaker):
                     # print("Matched sagemaker line")
                     current_job.status['episode_number'] = int(m.groups(2)[1])
                     current_job.status['iteration_number'] = int(m.groups(2)[4])
+
                     if current_job.local_model:
                         tj = LocalModel.query.get(current_job.local_model_id)
                         tj.episodes_trained = int(m.groups(2)[1])

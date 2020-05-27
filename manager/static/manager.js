@@ -176,7 +176,7 @@ function saveModel() {
     });
 
     data["change_start_position"] = $("#change_start_position").is(':checked');
-    data["alternate_driving_direction"] = $("#alternate_driving_direction").is(':checked');
+    data["alternate_direction"] = $("#alternate_direction").is(':checked');
     data["randomize_obstacle_locations"] = $("#randomize_obstacle_locations").is(':checked');
 
     var jqxhr = $.post("/models", data)
@@ -230,8 +230,9 @@ function initModelsTable() {
         {title: "Model Name", field: "name", sorter: "string", responsive: 0},
         {title: "Description", field: "description", sorter: "string", responsive: 2},
         {title: "Status", field: "status", formatter: "plaintext", align: "center", responsive: 0},
-        {title: "Target Episodes", field: "episodes_target", sorter: "number", align: "center"},
-        {title: "Episodes trained", field: "episodes_trained", formatter: "plaintext", align: "center", responsive: 1},
+        {title: "Target minutes", field: "minutes_target", sorter: "number", align: "center"},
+        {title: "Mins trained", field: "minutes_trained", sorter: "number", align: "center"},
+        {title: "Episodes", field: "episodes_trained", formatter: "plaintext", align: "center", responsive: 1},
         {title: "Laps complete", field: "laps_complete", sorter: "number", align: "center", responsive: 1},
         {title: "Fastest lap", field: "best_lap_time", sorter: "number", align: "center", responsive: 1},
         {
@@ -255,7 +256,10 @@ function initModelsTable() {
             model_id = row.getCell("id").getValue();
             model_name = row.getCell("name").getValue();
             initCharts(row.getCell("id").getValue());
-        }
+        },
+        initialSort: [
+            {column: "id", dir: "desc"}
+        ]
     });
     updateModelsTable();
 }
@@ -283,7 +287,7 @@ function editModel(model_id) {
         .done(function (data) {
             for (var key in data) {
                 $("#" + key).val(data[key]);
-                console.log(key + " = ["+data[key]+"]");
+                console.log(key + " = [" + data[key] + "]");
                 if ($("#" + key).is(':checkbox')) {
                     console.log("is checkbox");
                     if (data[key] == true) {
@@ -749,10 +753,10 @@ function initCharts(model_id = null) {
                             best_episode = current_episode_number - 1;
                         }
 
-                        let complete_avg = (current_episode_eval_complete_count/current_episode_eval_count)*100;
-                        let offtrack_avg = (current_episode_eval_offtrack_count/current_episode_eval_count)*100;
-                        let crashed_avg = (current_episode_eval_crashed_count/current_episode_eval_count)*100;
-                        let reversed_avg = (current_episode_eval_reversed_count/current_episode_eval_count)*100;
+                        let complete_avg = (current_episode_eval_complete_count / current_episode_eval_count) * 100;
+                        let offtrack_avg = (current_episode_eval_offtrack_count / current_episode_eval_count) * 100;
+                        let crashed_avg = (current_episode_eval_crashed_count / current_episode_eval_count) * 100;
+                        let reversed_avg = (current_episode_eval_reversed_count / current_episode_eval_count) * 100;
                         complete_avg_data.push([current_episode_number - 1, complete_avg]);
                         offtrack_avg_data.push([current_episode_number - 1, offtrack_avg]);
                         crashed_avg_data.push([current_episode_number - 1, crashed_avg]);
