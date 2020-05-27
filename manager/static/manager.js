@@ -322,6 +322,7 @@ function startTraining() {
         contentType: "application/json; charset=utf-8",
         success: function () {
             console.log("POST /current_job success");
+            setTimeout(initCharts, 5000);
         }
     });
 
@@ -334,8 +335,8 @@ function startTraining() {
 
     currentModelID = null;
 
-    setTimeout(startVideo, 5000);
-    initCharts();
+    setTimeout(startVideo, 30000);
+    // initCharts();
 }
 
 function stopTraining() {
