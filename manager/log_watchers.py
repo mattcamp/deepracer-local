@@ -9,6 +9,7 @@ from manager import app, current_job, db
 from manager.models import LocalModel
 import redis
 from datetime import datetime
+# import wandb
 
 client = docker.from_env()
 
@@ -193,12 +194,15 @@ def tail_metrics():
                             job.best_lap_time = float(metric["elapsed_time_in_milliseconds"])/1000
                         db.session.commit()
 
+                    # wandb.log(metric)
+
                     current_job.metrics.append(metric)
                     metric["job"] = current_job.local_model_id
                     key = "metrics-{}".format(current_job.local_model_id)
 
                     app.logger.debug("METRIC: %s" % metric)
                     r.rpush(key, json.dumps(metric))
+
                 except Exception as e:
                     app.logger.error("Error decoding JSON metric: %s (This is OK during startup)" % e)
         except:
