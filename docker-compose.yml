@@ -21,13 +21,13 @@ services:
     env_file: config.env
     container_name: coach
     volumes:
-    - '//var/run/docker.sock:/var/run/docker.sock'
+    - '/var/run/docker.sock:/var/run/docker.sock'
     - './src/rl_coach_2020_v2:/deepracer/rl_coach'
     - '/robo/container:/robo/container'
     depends_on:
     - minio
   robomaker:
-    image: awsdeepracercommunity/deepracer-robomaker:cpu
+    image: awsdeepracercommunity/deepracer-robomaker:gpu
     command: ["${ROBOMAKER_COMMAND}"]
     volumes:
       - ./data/robomaker:/root/.ros/
