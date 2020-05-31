@@ -20,7 +20,7 @@ if [ "$ENABLE_LOCAL_DESKTOP" = true ] ; then
     SAGEMAKER_ID="$(docker ps | awk ' /sagemaker/ { print $1 }')"
 
     echo 'Attempting to open stream viewer and logs...'
-    gnome-terminal --tab -- sh -c "echo viewer;x-www-browser -new-window http://localhost:8888/stream_viewer?topic=/racecar/deepracer/kvs_stream;sleep 1;wmctrl -r kvs_stream -b remove,maximized_vert,maximized_horz;sleep 1;wmctrl -r kvs_stream -e 1,100,100,720,640"
+    gnome-terminal -- sh -c "echo viewer;x-www-browser -new-window http://localhost:8888/stream_viewer?topic=/racecar/deepracer/kvs_stream;sleep 1;wmctrl -r kvs_stream -b remove,maximized_vert,maximized_horz;sleep 1;wmctrl -r kvs_stream -e 1,100,100,720,640"
     gnome-terminal --tab -- sh -c "docker logs -f $SAGEMAKER_ID"
 else
     echo "Started in headless server mode. Set ENABLE_LOCAL_DESKTOP to true in config.env for desktop mode."

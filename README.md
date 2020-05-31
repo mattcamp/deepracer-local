@@ -46,7 +46,7 @@ The video stream is available either via a web stream of via Kinesis.
 
 ### Web stream:
 
-The web video stream is exposed on port 8888. If you're running a local browser then you should be able to browse directly to http://127.0.0.1:8888/stream_viewer?topic=/racecar/deepracer/kvs_stream once Robomaker has started.
+The web video stream is exposed on port 8888. If you're running a local browser then you should be able to browse directly to `http://127.0.0.1:8888/stream_viewer?topic=/racecar/deepracer/kvs_stream` once Robomaker has started.
 
 ### Kinesis stream:
 
@@ -61,6 +61,9 @@ To use Kinesis:
 Kinesis video is a stream of approx 1.5Mbps so beware the impact on your AWS costs and your bandwidth. 
 
 Once working the stream should be visible in the Kinesis console. 
+
+### VNC
+You can enter runnning environment using a vncviewer at localhost:8080.
 
 ## Known issues:
 - Sometimes sagemaker won't start claiming that `/opt/ml/input/config/resourceconfig.json` is missing. Still trying to work out why.

@@ -27,7 +27,7 @@ services:
     depends_on:
     - minio
   robomaker:
-    image: awsdeepracercommunity/deepracer-robomaker:gpu
+    image: awsdeepracercommunity/deepracer-robomaker:cpu-avx2
     command: ["${ROBOMAKER_COMMAND}"]
     volumes:
       - ./data/robomaker:/root/.ros/

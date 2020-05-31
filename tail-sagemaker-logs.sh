@@ -7,4 +7,4 @@ do
   sleep 1
 done
 
-docker logs -f $SAGEMAKER_ID
+docker logs --follow $SAGEMAKER_ID

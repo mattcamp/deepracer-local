@@ -2,6 +2,7 @@
  * Clean deepracer directory recursively.
  * This utility was made to avoid entering sudo password every time
  * you want to clean your data.
+ * PLEASE MAKE SURE TO UPDATE THE PATH BELOW IN main
  *
  * To build: gcc -o delete-last delete-last.c
  * To run:
@@ -29,7 +30,7 @@ int filtdir(const struct dirent *entry) {
 }
 
 int filtreg(const struct dirent *entry) {
-	return filter(entry, DT_REG);
+	return filter(entry, DT_REG) || filter(entry, DT_LNK);
 }
 
 void deletedir(const char* path) {
