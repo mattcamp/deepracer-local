@@ -1,5 +1,6 @@
 data/robomaker
 data/minio/bucket/current
+data/minio/bucket/rl-deepracer-pretrained
 data/minio/bucket/DeepRacer-Metrics
 data/minio/.minio.sys
 .idea

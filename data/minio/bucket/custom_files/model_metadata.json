@@ -2,42 +2,42 @@
     "action_space": [
         {
             "steering_angle": -30,
-            "speed": 1.0,
+            "speed": 1.5,
             "index": 0
         },
         {
             "steering_angle": -20,
-            "speed": 1.3333333333333333,
+            "speed": 1.6,
             "index": 1
         },
         {
             "steering_angle": -10,
-            "speed": 2,
+            "speed": 1.6,
             "index": 2
         },
         {
             "steering_angle": 0,
-            "speed": 2.5,
+            "speed": 1.6,
             "index": 3
         },
         {
             "steering_angle": 10,
-            "speed": 2,
+            "speed": 1.6,
             "index": 4
         },
         {
             "steering_angle": 20,
-            "speed": 1.3333333333333333,
+            "speed": 1.6,
             "index": 5
         },
         {
             "steering_angle": 30,
-            "speed": 1.0,
+            "speed": 1.5,
             "index": 6
         }
     ],
     "sensor": [
-        "STEREO_CAMERAS"
+        "FRONT_FACING_CAMERA"
     ],
     "neural_network": "DEEP_CONVOLUTIONAL_NETWORK_SHALLOW",
     "version": "2"
