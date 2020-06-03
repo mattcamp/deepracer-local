@@ -55,37 +55,6 @@ print("Model checkpoints and other metadata will be stored at: {}{}".format(s3_o
 s3_location = "s3://%s/%s" % (s3_bucket, s3_prefix)
 print("Uploading to " + s3_location)
 
-# Hyperparams
-## Here we load hyperparameters from hyperparams.json file
-with open('hyperparams.json', 'r', encoding='utf-8') as hp:
-    hyper = eval(hp.read())
-# Create dictionary that will be passed to estimator
-hyperparameters = {"s3_bucket": s3_bucket,
-        "s3_prefix": s3_prefix,
-        "aws_region": aws_region,
-        "model_metadata_s3_key": "s3://{}/custom_files/model_metadata.json".format(s3_bucket),
-        "RLCOACH_PRESET": RLCOACH_PRESET,
-        "batch_size": hyper["batch_size"],
-        "beta_entropy": hyper["beta_entropy"],
-        "discount_factor": hyper["discount_factor"],
-        "e_greedy_value": hyper["e_greedy_value"],
-        "epsilon_steps": hyper["epsilon_steps"],
-        "exploration_type": hyper["exploration_type"],
-        "loss_type": hyper["loss_type"],
-        "lr": hyper["lr"],
-        "num_episodes_between_training": hyper["num_episodes_between_training"],
-        "num_epochs": hyper["num_epochs"],
-        "stack_size": hyper["stack_size"],
-        "term_cond_avg_score": hyper["term_cond_avg_score"],
-        "term_cond_max_episodes": hyper["term_cond_max_episodes"]
-        }
-# Enable pretrained if setting existed
-if hyper["pretrained"] > 0:
-    hyperparameters.update({
-        "pretrained_s3_bucket": "{}".format(s3_bucket),
-        "pretrained_s3_prefix": "rl-deepracer-pretrained"
-        })
-
 metric_definitions = [
     # Training> Name=main_level/agent, Worker=0, Episode=19, Total reward=-102.88, Steps=19019, Training iteration=1
     {'Name': 'reward-training',
@@ -125,6 +94,37 @@ if enable_gpu_training == 'false':
 else:
     instance_type = "local_gpu"
     image_name = "awsdeepracercommunity/deepracer-sagemaker:gpu"
+
+# Hyperparams
+## Here we load hyperparameters from hyperparams.json file
+with open('hyperparams.json', 'r', encoding='utf-8') as hp:
+    hyper = eval(hp.read())
+# Create dictionary that will be passed to estimator
+hyperparameters = {"s3_bucket": s3_bucket,
+        "s3_prefix": s3_prefix,
+        "aws_region": aws_region,
+        "model_metadata_s3_key": "s3://{}/custom_files/model_metadata.json".format(s3_bucket),
+        "RLCOACH_PRESET": RLCOACH_PRESET,
+        "batch_size": hyper["batch_size"],
+        "beta_entropy": hyper["beta_entropy"],
+        "discount_factor": hyper["discount_factor"],
+        "e_greedy_value": hyper["e_greedy_value"],
+        "epsilon_steps": hyper["epsilon_steps"],
+        "exploration_type": hyper["exploration_type"],
+        "loss_type": hyper["loss_type"],
+        "lr": hyper["lr"],
+        "num_episodes_between_training": hyper["num_episodes_between_training"],
+        "num_epochs": hyper["num_epochs"],
+        "stack_size": hyper["stack_size"],
+        "term_cond_avg_score": hyper["term_cond_avg_score"],
+        "term_cond_max_episodes": hyper["term_cond_max_episodes"]
+        }
+# Enable pretrained if setting existed
+if hyper["pretrained"] > 0:
+    hyperparameters.update({
+        "pretrained_s3_bucket": "{}".format(s3_bucket),
+        "pretrained_s3_prefix": "rl-deepracer-pretrained"
+        })
 
 estimator = RLEstimator(entry_point="training_worker.py",
                         source_dir='src',
