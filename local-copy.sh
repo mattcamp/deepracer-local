@@ -9,7 +9,6 @@ mkdir $MODELS/$1
 
 cp data/robomaker/log/rl_coach_* $MODELS/$1/
 cp -R data/minio/bucket/current/model $MODELS/$1/
-cp data/minio/bucket/current/source/* $MODELS/$1/
 cp data/minio/bucket/custom_files/reward.py $MODELS/$1/
 
 echo "done"

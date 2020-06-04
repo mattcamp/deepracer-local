@@ -1,5 +1,5 @@
 ---
-WORLD_NAME: "reInvent2019_track"
+WORLD_NAME: "Bowtie_track"
 RACE_TYPE: "TIME_TRIAL"
 SAGEMAKER_SHARED_S3_PREFIX: "current"
 CHANGE_START_POSITION: "true"

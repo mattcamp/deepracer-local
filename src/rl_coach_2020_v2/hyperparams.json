@@ -11,7 +11,7 @@
 	"num_epochs": 10,
 	"stack_size": 1,
 	"term_cond_avg_score": 100000.0,
-	"term_cond_max_episodes": 700,
-	"pretrained": 0
+	"term_cond_max_episodes": 500,
+	"pretrained": 1
 }
 
