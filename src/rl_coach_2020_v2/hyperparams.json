@@ -12,6 +12,6 @@
 	"stack_size": 1,
 	"term_cond_avg_score": 100000.0,
 	"term_cond_max_episodes": 10000,
-	"pretrained": 0
+	"pretrained": "false"
 }
 

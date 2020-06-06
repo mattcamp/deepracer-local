@@ -100,6 +100,7 @@ else:
 with open('hyperparams.json', 'r', encoding='utf-8') as hp:
     hyper = eval(hp.read())
 # Create dictionary that will be passed to estimator
+# TODO: code can be simplified if we iterate over an array of keys to init dict
 hyperparameters = {"s3_bucket": s3_bucket,
         "s3_prefix": s3_prefix,
         "aws_region": aws_region,
@@ -120,7 +121,7 @@ hyperparameters = {"s3_bucket": s3_bucket,
         "term_cond_max_episodes": hyper["term_cond_max_episodes"]
         }
 # Enable pretrained if setting existed
-if hyper["pretrained"] > 0:
+if hyper["pretrained"].lower() == "true":
     hyperparameters.update({
         "pretrained_s3_bucket": "{}".format(s3_bucket),
         "pretrained_s3_prefix": "rl-deepracer-pretrained"
