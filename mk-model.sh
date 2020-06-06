@@ -1,5 +1,6 @@
 #!/bin/bash
 # create .tar.gz file uploadable to physical deepracer
+# USAGE: ./mk-model.sh <model_path>
 cd $1
 echo $(pwd)
 

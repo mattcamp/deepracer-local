@@ -30,7 +30,9 @@ Very rough guide for use (details to come):
 - run `./start-training.sh` to start training
 - view docker logs to see if it's working (automatic if `tmux` is installed)
 - run `./stop-training.sh` to stop training.
-- run `./delete_last_run.sh` to clear out the buckets for a fresh run. 
+- run `./delete_last_run.sh` to clear out the buckets for a fresh run. For convenient version without sudo prompt check out `utilites/delete-last.c`.
+- run `./local-copy.sh <model_backup_name>` to backup current model files into user specified MODEL directory.
+- run `./mk-model.sh <model_path>` to create physical car uploadable .tar.gz file from your model. (Will be removed in a future update once file gets correctly generated after training)
 
 The first run will likely take quite a while to start as it needs to pull over 10GB of all the docker images.
 You can avoid this delay by pulling the images in advance:

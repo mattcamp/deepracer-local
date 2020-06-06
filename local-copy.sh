@@ -1,4 +1,5 @@
 #!/bin/bash
+# USAGE: ./local-copy.sh <model_backup_name>
 
 MODELS=../models
 
