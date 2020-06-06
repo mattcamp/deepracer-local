@@ -40,6 +40,9 @@ You can avoid this delay by pulling the images in advance:
    - `docker pull mattcamp/dr-coach`
    - `docker pull minio/minio`
 
+## Modifying parameters
+Hyperparameters for training are loaded from `hyperparams.json` inside `src/rl_coach_2020_v2/hyperparams.json` - shortcut link has been created in the root directory. Available options are exactly the same except the new option `pretrained` that simplifies enabling pretrained mode.
+
 ## Video stream
 
 The video stream is available either via a web stream of via Kinesis. 
