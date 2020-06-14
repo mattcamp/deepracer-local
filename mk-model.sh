@@ -4,15 +4,21 @@
 cd $1
 echo $(pwd)
 
-NUM=`cut -d -f 1 < model/.coach_checkpoint`
+if [ "$1" = "" ]; then
+	echo "USAGE: $0 <model_path>"
+else
 
-mkdir -p output/agent
+	NUM=`cut -d '_' -f 1 < model/.coach_checkpoint`
 
-cp "model/model_$NUM.pb" output/agent/model.pb
-cp model/model_metadata.json output/
+	mkdir -p output/agent
 
-cd output
-tar -czvf ../output.tar.gz *
+	cp "model/model_$NUM.pb" output/agent/model.pb
+	cp model/model_metadata.json output/
 
-echo "done"
+	cd output
+	tar -czvf ../output.tar.gz *
+
+	echo "done"
+
+fi
 
