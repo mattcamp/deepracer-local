@@ -38,6 +38,7 @@ def setup_logger(name, log_file, level=os.environ.get("LOGLEVEL", "INFO"), plain
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__)
+csrf = CSRFProtect(app)
 
 weblog = logging.getLogger('werkzeug')
 weblog.setLevel(logging.ERROR)
@@ -50,6 +51,7 @@ app.sagelogger = setup_logger('sagemaker_logger', 'manager/logs/sagemaker.log', 
 app.config['SECRET_KEY'] = os.urandom(32)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'manager.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['WTF_CSRF_CHECK_DEFAULT'] = False
 
 
 

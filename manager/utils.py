@@ -6,6 +6,8 @@ import logging
 import redis
 from datetime import datetime
 
+# import wandb
+
 from manager import app, current_job, db
 from manager.models import LocalModel
 from .log_watchers import tail_robomaker_logs, tail_sagemaker_logs, tail_metrics, start_sagemaker_log_tail
@@ -261,6 +263,21 @@ def start_all_containers():
             if not current_job.metricstail.is_alive():
                 current_job.metricstail = threading.Thread(target=tail_metrics)
                 current_job.metricstail.start()
+
+    # WandB is borked.
+    # wandb.init(project="deepracer_local", name=current_job.local_model.name)
+    # wandb.config.epochs = current_job.docker_env['HP_EPOCHS']
+    # wandb.config.batch_size = current_job.docker_env['HP_BATCH_SIZE']
+    # wandb.config.learning_rate = current_job.docker_env['HP_LEARNING_RATE']
+    # wandb.config.episodes_between_training = current_job.docker_env['HP_EPISODES_BETWEEN_TRAINING']
+    # wandb.config.loss_type = current_job.docker_env['HP_LOSS_TYPE']
+    # wandb.config.entropy = current_job.docker_env['HP_ENTROPY']
+    # wandb.config.discount_factor = current_job.docker_env['HP_DISCOUNT']
+    # wandb.config.track = current_job.docker_env['WORLD_NAME']
+    # wandb.config.model_name = current_job.local_model.name
+    #
+    # if 'PRETRAINED_MODEL' in current_job.docker_env:
+    #     wandb.config.pretrained_model = current_job.docker_env['PRETRAINED_MODEL']
 
 
 def stop_all_containers(minio=False):

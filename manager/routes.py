@@ -1,4 +1,4 @@
-from manager import app, db, current_job
+from manager import app, db, current_job, csrf
 from flask import render_template, request, redirect, jsonify
 from random import random
 from manager.forms import NewJobForm

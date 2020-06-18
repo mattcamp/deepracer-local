@@ -61,13 +61,13 @@ var previous_phase = null;
 
 $(document).ready(function () {
 
-    $.ajaxSetup({
-        beforeSend: function (xhr, settings) {
-            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-                xhr.setRequestHeader("X-CSRFToken", csrf_token);
-            }
-        }
-    });
+    // $.ajaxSetup({
+    //     beforeSend: function (xhr, settings) {
+    //         if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+    //             xhr.setRequestHeader("X-CSRFToken", csrf_token);
+    //         }
+    //     }
+    // });
 
     $('#saveModelButton').click(function () {
         saveModel();
@@ -85,7 +85,28 @@ $(document).ready(function () {
 
         $.get("/pretrained_dirs")
             .done(function (data) {
+                console.log(data);
+
+                // sort pretrained models
                 $("#pretrained_model").replaceOptions(data);
+                var sel = $('#pretrained_model');
+                var selected = sel.val(); // cache selected value, before reordering
+                var opts_list = sel.find('option');
+                opts_list.sort(function (a, b) {
+                    return $(a).text() > $(b).text() ? 1 : -1;
+                });
+                sel.html('').append(opts_list);
+                sel.val(selected);
+
+                // sort model_metadata
+                var sel = $('#model_metadata_filename');
+                var selected = sel.val(); // cache selected value, before reordering
+                var opts_list = sel.find('option');
+                opts_list.sort(function (a, b) {
+                    return $(a).text() > $(b).text() ? 1 : -1;
+                });
+                sel.html('').append(opts_list);
+                sel.val(selected);
             });
         $("#id").val(null);
         $("#name").val("");
@@ -477,8 +498,9 @@ function updateGraphs() {
                     // console.log("Evaluation iteration " + iteration + ": count=" + current_episode_eval_count + " pc_total=" + current_episode_eval_completion_total);
 
                     if (metric["episode_status"] == "Lap complete") {
+                        console.log("Adding eval lap complete point at episode "+current_episode_number+", lap time: "+metric["elapsed_time_in_milliseconds"] / 1000);
                         completeChart.series[2].addPoint([current_episode_number, metric["elapsed_time_in_milliseconds"] / 1000]);
-                        completeChart.series[3].addPoint([current_episode_number, metric["reward_score"]]);
+                        // completeChart.series[3].addPoint([current_episode_number, metric["reward_score"]]);
                     }
 
                     previous_phase = "evaluation";
