@@ -55,7 +55,6 @@ print("Model checkpoints and other metadata will be stored at: {}{}".format(s3_o
 s3_location = "s3://%s/%s" % (s3_bucket, s3_prefix)
 print("Uploading to " + s3_location)
 
-
 metric_definitions = [
     # Training> Name=main_level/agent, Worker=0, Episode=19, Total reward=-102.88, Steps=19019, Training iteration=1
     {'Name': 'reward-training',
@@ -96,6 +95,38 @@ else:
     instance_type = "local_gpu"
     image_name = "awsdeepracercommunity/deepracer-sagemaker:gpu"
 
+# Hyperparams
+## Here we load hyperparameters from hyperparams.json file
+with open('hyperparams.json', 'r', encoding='utf-8') as hp:
+    hyper = eval(hp.read())
+# Create dictionary that will be passed to estimator
+# TODO: code can be simplified if we iterate over an array of keys to init dict
+hyperparameters = {"s3_bucket": s3_bucket,
+        "s3_prefix": s3_prefix,
+        "aws_region": aws_region,
+        "model_metadata_s3_key": "s3://{}/custom_files/model_metadata.json".format(s3_bucket),
+        "RLCOACH_PRESET": RLCOACH_PRESET,
+        "batch_size": hyper["batch_size"],
+        "beta_entropy": hyper["beta_entropy"],
+        "discount_factor": hyper["discount_factor"],
+        "e_greedy_value": hyper["e_greedy_value"],
+        "epsilon_steps": hyper["epsilon_steps"],
+        "exploration_type": hyper["exploration_type"],
+        "loss_type": hyper["loss_type"],
+        "lr": hyper["lr"],
+        "num_episodes_between_training": hyper["num_episodes_between_training"],
+        "num_epochs": hyper["num_epochs"],
+        "stack_size": hyper["stack_size"],
+        "term_cond_avg_score": hyper["term_cond_avg_score"],
+        "term_cond_max_episodes": hyper["term_cond_max_episodes"]
+        }
+# Enable pretrained if setting existed
+if hyper["pretrained"].lower() == "true":
+    hyperparameters.update({
+        "pretrained_s3_bucket": "{}".format(s3_bucket),
+        "pretrained_s3_prefix": "rl-deepracer-pretrained"
+        })
+
 estimator = RLEstimator(entry_point="training_worker.py",
                         source_dir='src',
                         dependencies=["common/sagemaker_rl"],
@@ -111,29 +142,7 @@ estimator = RLEstimator(entry_point="training_worker.py",
                         base_job_name=job_name,
                         image_name=image_name,
                         train_max_run=job_duration_in_seconds, # Maximum runtime in seconds
-                        hyperparameters={"s3_bucket": s3_bucket,
-                                         "s3_prefix": s3_prefix,
-                                         "aws_region": aws_region,
-                                         "model_metadata_s3_key": "s3://{}/custom_files/model_metadata.json".format(s3_bucket),
-                                         "RLCOACH_PRESET": RLCOACH_PRESET,
-
-                                         "batch_size": 64,
-                                         "beta_entropy": 0.01,
-                                         "discount_factor": 0.999,
-                                         "e_greedy_value": 0.05,
-                                         "epsilon_steps": 10000,
-                                         "exploration_type": "categorical",
-                                         "loss_type": "mean squared error",
-                                         "lr": 0.0003,
-                                         "num_episodes_between_training": 20,
-                                         "num_epochs": 10,
-                                         "stack_size": 1,
-                                         "term_cond_avg_score": 100000.0,
-                                         "term_cond_max_episodes": 100000
-
-                                         #"pretrained_s3_bucket": "{}".format(s3_bucket),
-                                         #"pretrained_s3_prefix": "rl-deepracer-pretrained"
-                                      },
+                        hyperparameters=hyperparameters,
                         metric_definitions = metric_definitions,
 						s3_client=s3Client
                         #subnets=default_subnets, # Required for VPC mode

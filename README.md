@@ -30,7 +30,9 @@ Very rough guide for use (details to come):
 - run `./start-training.sh` to start training
 - view docker logs to see if it's working (automatic if `tmux` is installed)
 - run `./stop-training.sh` to stop training.
-- run `./delete_last_run.sh` to clear out the buckets for a fresh run. 
+- run `./delete_last_run.sh` to clear out the buckets for a fresh run. For convenient version without sudo prompt check out `utilites/delete-last.c`.
+- run `./local-copy.sh <model_backup_name>` to backup current model files into user specified MODEL directory.
+- run `./mk-model.sh <model_path>` to create physical car uploadable .tar.gz file from your model. (Will be removed in a future update once file gets correctly generated after training)
 
 The first run will likely take quite a while to start as it needs to pull over 10GB of all the docker images.
 You can avoid this delay by pulling the images in advance:
@@ -40,13 +42,16 @@ You can avoid this delay by pulling the images in advance:
    - `docker pull mattcamp/dr-coach`
    - `docker pull minio/minio`
 
+## Modifying parameters
+Hyperparameters for training are loaded from `hyperparams.json` inside `src/rl_coach_2020_v2/hyperparams.json` - shortcut link has been created in the root directory. Available options are exactly the same except the new option `pretrained` that simplifies enabling pretrained mode.
+
 ## Video stream
 
 The video stream is available either via a web stream of via Kinesis. 
 
 ### Web stream:
 
-The web video stream is exposed on port 8888. If you're running a local browser then you should be able to browse directly to http://127.0.0.1:8888/stream_viewer?topic=/racecar/deepracer/kvs_stream once Robomaker has started.
+The web video stream is exposed on port 8888. If you're running a local browser then you should be able to browse directly to `http://127.0.0.1:8888/stream_viewer?topic=/racecar/deepracer/kvs_stream` once Robomaker has started.
 
 ### Kinesis stream:
 
@@ -61,6 +66,9 @@ To use Kinesis:
 Kinesis video is a stream of approx 1.5Mbps so beware the impact on your AWS costs and your bandwidth. 
 
 Once working the stream should be visible in the Kinesis console. 
+
+### VNC
+You can enter runnning environment using a vncviewer at localhost:8080.
 
 ## Known issues:
 - Sometimes sagemaker won't start claiming that `/opt/ml/input/config/resourceconfig.json` is missing. Still trying to work out why.
