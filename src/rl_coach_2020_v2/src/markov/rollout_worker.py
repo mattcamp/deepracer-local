@@ -51,7 +51,7 @@ from std_srvs.srv import Empty, EmptyRequest
 
 logger = Logger(__name__, logging.INFO).get_logger()
 
-MIN_EVAL_TRIALS = 5
+MIN_EVAL_TRIALS = rospy.get_param('MIN_EVAL_TRIALS', 5)
 
 CUSTOM_FILES_PATH = "./custom_files"
 if not os.path.exists(CUSTOM_FILES_PATH):
