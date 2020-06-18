@@ -39,7 +39,7 @@ Ubuntu 18.04 has been extensively tested.
     
     Many other options are available.
     
-4. Edit hyperparameters for training are loaded from `hyperparams.json` inside `src/rl_coach_2020_v2/hyperparams.json` - shortcut link has been created in the root directory. Available options are exactly the same except the new option `pretrained` that simplifies enabling pretrained mode.
+4. Edit hyperparameters in `hyperparams.json` inside `src/rl_coach_2020_v2/hyperparams.json` - a symlink has been created in the root directory.
     
     More information on configuring local training can be found at https://wiki.deepracing.io/Customise_Local_Training
 
