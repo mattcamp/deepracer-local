@@ -120,6 +120,24 @@ $(document).ready(function () {
     setInterval(updateGraphs, 5000);
 });
 
+function resetGlobals() {
+    best_episode = 0;
+    best_eval_complete = 0;
+    current_episode_number = 0;
+    current_episode_training_count = 0;
+    current_episode_training_reward_total = 0;
+    current_episode_training_completion_total = 0;
+    current_episode_eval_count = 0;
+    current_episode_eval_reward_total = 0;
+    current_episode_eval_completion_total = 0;
+    current_episode_eval_complete_count = 0;
+    current_episode_eval_offtrack_count = 0;
+    current_episode_eval_crashed_count = 0;
+    current_episode_eval_reversed_count = 0;
+    previous_phase = null;
+    console.log("Resetting globals. best_episode now "+best_episode);
+}
+
 function setContainerStatus(element, status) {
     if (status == "running") {
         $("#" + element).removeClass("btn-secondary");
@@ -276,6 +294,8 @@ function initModelsTable() {
         rowClick: function (e, row) {
             model_id = row.getCell("id").getValue();
             model_name = row.getCell("name").getValue();
+            $("#rewardChart").html("<center>Loading metrics data for model ID " + model_id + "</center>");
+            resetGlobals();
             initCharts(row.getCell("id").getValue());
         },
         initialSort: [
@@ -543,6 +563,7 @@ function initCharts(model_id = null) {
     }
     console.log("initRewardChart() for model_id=" + model_id);
     currentChart = model_id;
+
     var rewardOptions = {
         chart: {
             type: 'line',
@@ -729,6 +750,7 @@ function initCharts(model_id = null) {
 
 
     footer("Fetching all metrics for model ID " + model_id);
+    $("#rewardChart").html("<br><br><center>Loading metrics data for model ID " + model_id + "...<br><img width='30' src='/static/loading.gif'></center>");
     // let url = "/metrics/" + currentModelID + "?from_episode=" + lastMetricsEpisode;
 
     let url = "/metrics/" + model_id;
