@@ -97,12 +97,12 @@ Kinesis video is a stream of approx 1.5Mbps so beware the impact on your AWS cos
 Once working the stream should be visible in the Kinesis console. 
 
 ## Known issues:
-- Sometimes sagemaker won't start claiming that `/opt/ml/input/config/resourceconfig.json` is missing. Still trying to work out why.
-- Stopping training at the wrong time seems to cause a problem where sagemaker will crash next time when trying to load the 'best' model which may not exist properly. This only happens if you start a new training session without clearing out the bucket first. Yet to be seen if this will cause a problem when trying to use pretrained models.
+- Sagemaker will occasionally fail to start with an error saying `/opt/ml/input/config/resourceconfig.json` is missing. This is currently proving hard to reproduce and fix but seems fairly rare.
+- There is a possibility that stopping training at the wrong time could problem where sagemaker will crash next time when trying to load the 'best' model which may not exist properly. Work is continuing to make this more robust but to be safe you should only stop training while the status is "Training" and not "Evaluating".
 - `training_params.yaml` must exist in the target bucket or robomaker will not start. The start-training.sh script will copy it over from custom_files if necessary.
-- Scripts not currently included to handle uploading to AWS Console or virtual league. 
-- Current sagemaker and robomaker GPU images are built for nvidia GPU only. 
-- The sagemaker and robomaker images are huge (~4.5GB)
+- Scripts are not currently included to handle uploading to AWS Console or virtual league. https://github.com/cahya-wirawan/deepracer-tools includes such tools.
+- Current Sagemaker and Robomaker GPU images are built for nvidia GPU only. 
+- The Sagemaker and Robomaker images are huge (~4.5GB) and can take a long time to download, especially on the first run.
 
 ## Getting help
 
