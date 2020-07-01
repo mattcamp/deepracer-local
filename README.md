@@ -21,10 +21,12 @@ Ubuntu 18.04 has been extensively tested.
             }
         }
 
+Visit the Community Knowledge Base for [a list of detailed resources and checks to confirm your prerequisites are set up properly.](https://wiki.deepracing.io/Local_Training#Prerequisites)
+
 ## Configure training session
 
 1.  Edit the reward function in `data/minio/bucket/custom_files/reward.py`
-2.  Edit the action space in `data/mini/bucket/custom_files/model_metadata.json`
+2.  Edit the action space, CNN layers and sensors in `data/mini/bucket/custom_files/model_metadata.json`
 3.  Edit the training params in `config.env` and `data/minio/bucket/custom_files/training_params.yaml`. Note that the track name MUST be the same in both files!
 
     Useful options include:
@@ -34,7 +36,7 @@ Ubuntu 18.04 has been extensively tested.
     |ENABLE_GPU_TRAINING|Enables GPU for SageMaker runtime: `true` (nvidia runtime) or `false` (CPU runtime). Default is GPU|
     |ENABLE_LOCAL_DESKTOP|Set to `true` if you have a local X-windows install (desktop machine) and want to automatically start the stream viewer and tail sagemaker and robomaker logs.|
     |ENABLE_TMUX|Enables tmux for automatic log tails in your existing terminal session (good for remote servers)|
-    |ENABLE_GUI|Enables gazebo client. Access via vnc|
+    |ENABLE_GUI|Enables gazebo client. Access via vnc on localhost:8080|
     |WORLD_NAME|The track name. Tracks are contained within the robomaker container image, built from the [deepracer-simapp community project](https://github.com/aws-deepracer-community/deepracer-simapp/tree/master/bundle/deepracer_simulation_environment/share/deepracer_simulation_environment/worlds) (excluding the .world suffix)
     
     Many other options are available.
@@ -82,7 +84,7 @@ If running, sagemaker will be stopped first and then after a 20s delay the rest 
 
 ### Kinesis video stream:
 
-Kinesis video currently only works via the real AWS Kinesis service probably only makes sense if you are training on an EC2 instance.
+Kinesis video currently only works via the real AWS Kinesis service and probably only makes sense if you are training on an EC2 instance.
 
 To use Kinesis:
 - create a real AWS user (with programmatic access keys) which has a policy attached that allows Kinesis access. 
@@ -95,12 +97,12 @@ Kinesis video is a stream of approx 1.5Mbps so beware the impact on your AWS cos
 Once working the stream should be visible in the Kinesis console. 
 
 ## Known issues:
-- Sometimes sagemaker won't start claiming that `/opt/ml/input/config/resourceconfig.json` is missing. Still trying to work out why.
-- Stopping training at the wrong time seems to cause a problem where sagemaker will crash next time when trying to load the 'best' model which may not exist properly. This only happens if you start a new training session without clearing out the bucket first. Yet to be seen if this will cause a problem when trying to use pretrained models.
+- Sagemaker will occasionally fail to start with an error saying `/opt/ml/input/config/resourceconfig.json` is missing. This is currently proving hard to reproduce and fix but seems fairly rare.
+- There is a possibility that stopping training at the wrong time could problem where sagemaker will crash next time when trying to load the 'best' model which may not exist properly. Work is continuing to make this more robust but to be safe you should only stop training while the status is "Training" and not "Evaluating".
 - `training_params.yaml` must exist in the target bucket or robomaker will not start. The start-training.sh script will copy it over from custom_files if necessary.
-- Scripts not currently included to handle uploading to AWS Console or virtual league. 
-- Current sagemaker and robomaker GPU images are built for nvidia GPU only. 
-- The sagemaker and robomakers images are huge (~4.5GB)
+- Scripts are not currently included to handle uploading to AWS Console or virtual league. https://github.com/cahya-wirawan/deepracer-tools includes such tools.
+- Current Sagemaker and Robomaker GPU images are built for nvidia GPU only. 
+- The Sagemaker and Robomaker images are huge (~4.5GB) and can take a long time to download, especially on the first run.
 
 ## Getting help
 
