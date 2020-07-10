@@ -10,6 +10,7 @@ from os.path import isfile, isdir, join
 import redis
 
 track_choices = [
+    ("July_2020", "July 2020"),
     ("Spain_track", "Circuit de Barcelona-Catalunya"),
     ("AmericasGeneratedInclStart", "Baadal"),
     ("LGSWide", "SOLA Speedway"),
