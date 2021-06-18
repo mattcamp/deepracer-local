@@ -19,15 +19,17 @@ dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /nores
 ```
 wsl --set-default-version 2
 ```
+## Group Step 3 install docker-desktop
+https://www.docker.com/products/docker-desktop  
 
-## Group Step 3 install ubuntu 18.04 in WSL and docker-desktop with WSL integration:
+## Group Step 4 install ubuntu 18.04 in WSL and docker-desktop with WSL integration:
   Ubuntu 18.04 is the recommended for DeepRacer: Microsoft store, ‘get’ then ‘install’ https://www.microsoft.com/store/apps/9N9TNGVNDL3Q   
   Launch after install, setup your default linux username/password.
 
   In Docker Desktop, go to ‘gear /settings’ -> Resources -> WSL Integration -> turn on integration for Ubuntu-18.04
   --verify, go into ubuntu terminal and type ‘docker --version’, if it returns correctly everything good!
 
-## Group Step 4 (in ubuntu terminal, install docker compose):
+## Group Step 5 (in ubuntu terminal, install docker compose):
 ```
 sudo curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose 
 
@@ -36,7 +38,7 @@ sudo chmod +x /usr/local/bin/docker-compose
 docker-compose –version
 ```
 
-## Group Step 5 (in ubuntu terminal):
+## Group Step 6 (in ubuntu terminal):
   NOTE: the deepracer-local docker-compose.yaml expects a deepracer-robomaker:cpu-avx2 so downloading it explicitly.
 
 ```
