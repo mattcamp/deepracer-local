@@ -1,4 +1,8 @@
-# DeepRacer local training (2020 version)
+# This project is now deprecated and will not work with the current versions of the AWS Deepracer console or bundle. You should use [DRFC](https://github.com/aws-deepracer-community/deepracer-for-cloud) instead.
+
+------------------
+
+## DeepRacer local training (2020 version)
 
 Heavily based off work by [Crr0004](https://github.com/crr0004), [AlexSchultz](https://github.com/alexschultz), [Richardfan1126](https://github.com/richardfan1126) and [LarsLL](https://github.com/larsll)
 
